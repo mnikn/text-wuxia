@@ -2,6 +2,8 @@
 title: 定义故事单元 DSL 契约
 label: wayfinder:grilling
 status: open
+issue_number: 7
+issue_url: https://github.com/mnikn/text-wuxia/issues/7
 assignee:
 blocked_by:
   - 002-define-vertical-slice

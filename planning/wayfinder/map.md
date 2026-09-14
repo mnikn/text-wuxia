@@ -2,6 +2,8 @@
 title: 武侠江湖生活模拟 MVP 实施路线
 label: wayfinder:map
 status: open
+issue_number: 1
+issue_url: https://github.com/mnikn/text-wuxia/issues/1
 ---
 
 ## Destination
@@ -20,10 +22,10 @@ status: open
 
 <!-- 关闭票据后追加一行摘要和链接；详细答案只写在票据。 -->
 
-- [验证 SugarCube 技术基础与许可边界](tickets/001-verify-technical-foundation.md)：采用隔离式 SugarCube/Tweego + 当前 Node/Vite/TypeScript/PWA 工具链，starter 仅作参考，DoL 与发布物保持 clean-room。
-- [定义首次门派任务的完整试玩路径](tickets/002-define-vertical-slice.md)：以七日内取得两类证明、药材护送及四级失败延续构成 1～2 小时切片，最终进入照川门，特殊招式不进入本切片。
-- [研究 DoL 的行动与 Passage 生命周期](tickets/011-research-dol-action-lifecycle.md)：只借鉴集中时间轴、跨边界结算和动作后事件选择；领域事务由 TypeScript 原子提交，SugarCube Passage 只读渲染，禁止渲染期写状态或抽 RNG。
-- [定义游戏状态与行动事务边界](tickets/003-define-state-and-action-transaction.md)：`State.variables.game` 保存领域化权威快照，全部行动经确定性、可回滚事务提交；时间调度、事件入口与提交后副作用具有固定顺序，局部 ECS 只作为未来模块内部实现。
+- [验证 SugarCube 技术基础与许可边界](https://github.com/mnikn/text-wuxia/issues/2)：采用隔离式 SugarCube/Tweego + 当前 Node/Vite/TypeScript/PWA 工具链，starter 仅作参考，DoL 与发布物保持 clean-room。
+- [定义首次门派任务的完整试玩路径](https://github.com/mnikn/text-wuxia/issues/3)：以七日内取得两类证明、药材护送及四级失败延续构成 1～2 小时切片，最终进入照川门，特殊招式不进入本切片。
+- [研究 DoL 的行动与 Passage 生命周期](https://github.com/mnikn/text-wuxia/issues/12)：只借鉴集中时间轴、跨边界结算和动作后事件选择；领域事务由 TypeScript 原子提交，SugarCube Passage 只读渲染，禁止渲染期写状态或抽 RNG。
+- [定义游戏状态与行动事务边界](https://github.com/mnikn/text-wuxia/issues/4)：`State.variables.game` 保存领域化权威快照，全部行动经确定性、可回滚事务提交；时间调度、事件入口与提交后副作用具有固定顺序，局部 ECS 只作为未来模块内部实现。
 
 ## Not yet specified
 

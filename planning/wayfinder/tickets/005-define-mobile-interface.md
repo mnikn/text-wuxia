@@ -2,6 +2,8 @@
 title: 定义手机优先交互壳
 label: wayfinder:prototype
 status: open
+issue_number: 6
+issue_url: https://github.com/mnikn/text-wuxia/issues/6
 assignee:
 blocked_by: []
 ---

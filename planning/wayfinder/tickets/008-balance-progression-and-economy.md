@@ -2,6 +2,8 @@
 title: 定义成长、经济与战斗数值不变量
 label: wayfinder:grilling
 status: open
+issue_number: 9
+issue_url: https://github.com/mnikn/text-wuxia/issues/9
 assignee:
 blocked_by:
   - 002-define-vertical-slice

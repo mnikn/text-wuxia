@@ -2,6 +2,8 @@
 title: 定义里程碑、验收门与实施依赖
 label: wayfinder:grilling
 status: open
+issue_number: 11
+issue_url: https://github.com/mnikn/text-wuxia/issues/11
 assignee:
 blocked_by:
   - 001-verify-technical-foundation

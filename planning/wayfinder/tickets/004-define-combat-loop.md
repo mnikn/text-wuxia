@@ -2,6 +2,8 @@
 title: 定义动态战斗回合与失败后果
 label: wayfinder:prototype
 status: open
+issue_number: 5
+issue_url: https://github.com/mnikn/text-wuxia/issues/5
 assignee:
 blocked_by: []
 ---

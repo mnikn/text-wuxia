@@ -2,6 +2,8 @@
 title: 定义游戏状态与行动事务边界
 label: wayfinder:grilling
 status: closed
+issue_number: 4
+issue_url: https://github.com/mnikn/text-wuxia/issues/4
 assignee: root
 blocked_by:
   - 011-research-dol-action-lifecycle

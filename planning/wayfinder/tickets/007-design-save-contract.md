@@ -2,6 +2,8 @@
 title: 定义存档契约与迁移起点
 label: wayfinder:grilling
 status: open
+issue_number: 8
+issue_url: https://github.com/mnikn/text-wuxia/issues/8
 assignee:
 blocked_by:
   - 001-verify-technical-foundation

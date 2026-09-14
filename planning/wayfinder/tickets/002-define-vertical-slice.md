@@ -2,6 +2,8 @@
 title: 定义首次门派任务的完整试玩路径
 label: wayfinder:grilling
 status: closed
+issue_number: 3
+issue_url: https://github.com/mnikn/text-wuxia/issues/3
 assignee: root
 blocked_by: []
 resolution: "试玩按角色创建、县城落脚、七日内取得两类入门证明、候选学徒护送药材、四级结果入门收束；三种出身和三类证明改变任务条件，失败延续但不死亡，特殊招式移出本切片。"

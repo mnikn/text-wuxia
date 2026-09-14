@@ -2,6 +2,8 @@
 title: 定义 AI 辅助内容生产与校验流程
 label: wayfinder:grilling
 status: open
+issue_number: 10
+issue_url: https://github.com/mnikn/text-wuxia/issues/10
 assignee:
 blocked_by:
   - 006-design-event-dsl

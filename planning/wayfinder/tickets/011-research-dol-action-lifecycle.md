@@ -2,6 +2,8 @@
 title: 研究 DoL 的行动与 Passage 生命周期
 label: wayfinder:research
 status: closed
+issue_number: 12
+issue_url: https://github.com/mnikn/text-wuxia/issues/12
 assignee: dol_action_lifecycle_research
 blocked_by: []
 resolution: "参考 DoL 的集中时间轴、跨时间边界结算与动作后事件选择，但不沿用 Passage 内直接写状态。TypeScript 事务执行器按固定顺序完成验证、RNG、成本、效果、时间、世界与事件结算后原子提交；SugarCube Passage 只读渲染。研究资产见 ../research/dol-action-and-passage-lifecycle.md。"
