@@ -31,6 +31,7 @@ issue_url: https://github.com/mnikn/text-wuxia/issues/1
 - [定义故事单元 DSL 契约](https://github.com/mnikn/text-wuxia/issues/7)：一个故事单元 = 一个 Twee passage，条件/选择/检定/效果以自定义宏内联正文流；构建期提取器编译注册表，运行时宏渲染空操作、选择由交互壳渲染；once/cooldown/mutex + priority 分层加权 + next 链接 + 检定档带。
 - [定义存档契约与迁移起点](https://github.com/mnikn/text-wuxia/issues/8)：自有存档层（SugarCube 不参与），存档包 = meta + GameState 快照；整数版本 + 纯函数迁移链；双缓冲原子写 + 行动后自动存档（1 自动 + 3 手动）；IndexedDB + persist；设置页导出/导入。
 - [定义成长、经济与战斗数值不变量](https://github.com/mnikn/text-wuxia/issues/9)：7 日盒 ≈56h 预算、三死线交错；基本武艺递减成长（考核 ≥50 ≈ 27% 预算）、打工/采集时薪上限防无限钱；战斗复用检定档带，单次战败最坏 2 日+60 文；模拟器四 bot 断言软锁与取舍，常量集中 balance.ts。
+- [定义 AI 辅助内容生产与校验流程](https://github.com/mnikn/text-wuxia/issues/10)：人写大纲 → AI 起草 → 人审改 → 校验门 → 入库；指南即 prompt + 模板 passage；构建期 schema/引用/lint、CI 可达性+黄金回放+注册表 diff、人审裁决文风；入口单元必配测试；@source 汇总合规清单。
 
 ## Not yet specified
 
