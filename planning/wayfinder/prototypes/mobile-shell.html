@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>手机优先交互壳原型 · 三方案</title>
+<!-- 原型 · 用完即弃。三个结构迥异的手机优先交互壳方案，通过底部悬浮条或 ?variant=A|B|C 切换。 -->
+<style>
+  :root { --accent: #8c2f2f; --ink: #26221c; --paper: #f7f3ec; --line: #ddd3c4; --panel: #fff; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body { font-family: "Songti SC", "Noto Serif SC", "SimSun", serif; background: var(--paper); color: var(--ink); line-height: 1.7; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  .proto-tag { position: fixed; top: 8px; right: 10px; z-index: 90; font-size: 11px; letter-spacing: 1px; color: #fff; background: var(--accent); padding: 2px 8px; border-radius: 3px; }
+
+  /* ---------- 悬浮方案切换条（不属于被评估设计） ---------- */
+  #switcher { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 99;
+    display: flex; align-items: center; gap: 10px; background: #1d1a16; color: #f0e9dc;
+    border-radius: 999px; padding: 8px 14px; box-shadow: 0 4px 18px rgba(0,0,0,.35); font-size: 13px; }
+  #switcher button { color: #f0e9dc; font-size: 18px; padding: 2px 8px; }
+  #switcher .label { min-width: 150px; text-align: center; }
+
+  /* ---------- 通用小件 ---------- */
+  .meter { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; }
+  .meter i { display: inline-block; width: 52px; height: 7px; background: #e7dfd1; border-radius: 4px; overflow: hidden; }
+  .meter i b { display: block; height: 100%; background: var(--accent); }
+  .meter.tili i b { background: #4d6b3a; }
+  .meter.neili i b { background: #33556e; }
+  .choice { display: block; width: 100%; text-align: left; background: var(--panel); border: 1px solid var(--ink);
+    border-radius: 6px; padding: 13px 15px; font-size: 16px; line-height: 1.5; }
+  .choice small { display: block; color: #7a7164; font-size: 12.5px; margin-top: 2px; }
+  .choice:hover { border-color: var(--accent); color: var(--accent); }
+  .choice:active { background: #f3ecdf; }
+  .story p { margin: 0 0 14px; font-size: 16.5px; }
+  .story .scene-head { color: var(--accent); font-size: 14px; margin-bottom: 10px; }
+  .logline { font-size: 12.5px; color: #8a8175; }
+
+  /* ========== 方案 A：单栏滚动流 ========== */
+  [data-variant="A"] #va { display: flex; }
+  #va { display: none; flex-direction: column; height: 100dvh; max-width: 680px; margin: 0 auto; background: var(--paper); }
+  #va .statusbar { flex: none; border-bottom: 1px solid var(--line); background: var(--panel); padding: 8px 14px; }
+  #va .statusbar .row1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 13px; }
+  #va .statusbar .when { color: var(--accent); font-weight: bold; }
+  #va .statusbar .where { color: #6b6357; }
+  #va .statusbar .toggle { margin-left: auto; font-size: 12px; color: #7a7164; border: 1px solid var(--line); border-radius: 4px; padding: 2px 8px; }
+  #va .status-detail { display: none; padding-top: 8px; gap: 10px; flex-wrap: wrap; }
+  #va .statusbar.open .status-detail { display: flex; }
+  #va .scroll { flex: 1; overflow-y: auto; padding: 18px 18px 12px; }
+  #va .scroll .logline { margin-bottom: 14px; }
+  #va .dock { flex: none; border-top: 1px solid var(--line); background: var(--panel); padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); }
+  #va .dock .choices { display: grid; gap: 8px; }
+  #va .dock .utils { display: flex; justify-content: space-around; margin-top: 8px; }
+  #va .dock .utils button { font-size: 13px; color: #6b6357; padding: 8px 14px; min-height: 44px; }
+  #va .dock .utils button:hover { color: var(--accent); }
+  @media (min-width: 900px) {
+    [data-variant="A"] body { background: #efe9de; }
+    #va { border-left: 1px solid var(--line); border-right: 1px solid var(--line); box-shadow: 0 0 40px rgba(0,0,0,.06); }
+  }
+
+  /* ========== 方案 B：底部抽屉 ========== */
+  [data-variant="B"] #vb { display: block; }
+  #vb { display: none; height: 100dvh; position: relative; overflow: hidden; }
+  #vb .tophead { position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 10px 14px 22px;
+    background: linear-gradient(var(--paper) 55%, transparent); }
+  #vb .locs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  #vb .locs::-webkit-scrollbar { display: none; }
+  #vb .locs button { flex: none; border: 1px solid var(--line); background: var(--panel); border-radius: 999px;
+    padding: 6px 14px; font-size: 13.5px; min-height: 36px; }
+  #vb .locs button.now { border-color: var(--accent); color: var(--accent); font-weight: bold; }
+  #vb .locs button .cost { color: #9a9184; font-size: 11.5px; }
+  #vb .scroll { height: 100%; overflow-y: auto; padding: 74px 18px 150px; max-width: 680px; margin: 0 auto; }
+  #vb .choices { display: grid; gap: 8px; margin-top: 6px; }
+  #vb .sheet { position: absolute; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--panel);
+    border-top: 1px solid var(--line); border-radius: 14px 14px 0 0; box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+    transition: transform .18s ease-out; transform: translateY(calc(100% - 64px)); }
+  #vb .sheet.open { transform: translateY(0); }
+  #vb .sheet .grab { display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 16px; min-height: 64px; }
+  #vb .sheet .grab .pill { width: 34px; height: 4px; border-radius: 2px; background: #cfc5b4; position: absolute; left: 50%; top: 7px; transform: translateX(-50%); }
+  #vb .sheet .grab .when { color: var(--accent); font-weight: bold; font-size: 13.5px; }
+  #vb .sheet .grab .meters { display: flex; gap: 12px; flex-wrap: wrap; }
+  #vb .sheet .body { max-height: 55dvh; overflow-y: auto; padding: 4px 18px calc(16px + env(safe-area-inset-bottom)); max-width: 680px; margin: 0 auto; }
+  #vb .sheet .body h4 { font-size: 14px; color: var(--accent); margin: 12px 0 6px; }
+  #vb .sheet .kv { display: flex; justify-content: space-between; font-size: 14px; padding: 3px 0; border-bottom: 1px dashed #eee5d6; }
+  @media (min-width: 900px) {
+    #vb .sheet { left: auto; right: 0; top: 0; bottom: 0; width: 340px; border-radius: 0; border-top: none;
+      border-left: 1px solid var(--line); transform: none; }
+    #vb .sheet .grab { pointer-events: none; }
+    #vb .sheet .grab .pill { display: none; }
+    #vb .sheet .body { max-height: none; }
+    #vb .scroll { margin: 0; padding-left: 28px; max-width: 640px; }
+  }
+
+  /* ========== 方案 D：左侧抽屉 + 页签（B×C 混合） ========== */
+  [data-variant="D"] #vd { display: block; }
+  #vd { display: none; height: 100dvh; position: relative; overflow: hidden; }
+  #vd .tophead { position: absolute; top: 0; left: 0; right: 0; z-index: 5; padding: 10px 14px 22px 58px;
+    background: linear-gradient(var(--paper) 55%, transparent); }
+  #vd .locs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  #vd .locs::-webkit-scrollbar { display: none; }
+  #vd .locs button { flex: none; border: 1px solid var(--line); background: var(--panel); border-radius: 999px;
+    padding: 6px 14px; font-size: 13.5px; min-height: 36px; }
+  #vd .locs button.now { border-color: var(--accent); color: var(--accent); font-weight: bold; }
+  #vd .locs button .cost { color: #9a9184; font-size: 11.5px; }
+  #vd .scroll { height: 100%; overflow-y: auto; padding: 74px 18px 40px; max-width: 680px; margin: 0 auto; }
+  #vd .choices { display: grid; gap: 8px; margin-top: 6px; }
+  #vd .edge-handle { position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 7;
+    writing-mode: vertical-rl; background: var(--panel); border: 1px solid var(--line); border-left: none;
+    border-radius: 0 8px 8px 0; padding: 14px 7px; font-size: 12.5px; color: var(--accent); letter-spacing: 2px;
+    box-shadow: 2px 0 10px rgba(0,0,0,.06); }
+  #vd .backdrop { position: absolute; inset: 0; z-index: 8; background: rgba(30,25,18,.35);
+    opacity: 0; pointer-events: none; transition: opacity .18s; }
+  #vd .backdrop.show { opacity: 1; pointer-events: auto; }
+  #vd .drawer { position: absolute; left: 0; top: 0; bottom: 0; z-index: 9; width: min(84vw, 340px);
+    background: var(--panel); border-right: 1px solid var(--line); box-shadow: 4px 0 24px rgba(0,0,0,.12);
+    transform: translateX(-102%); transition: transform .18s ease-out; display: flex; flex-direction: column; }
+  #vd .drawer.open { transform: translateX(0); }
+  #vd .drawer .dhead { flex: none; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+  #vd .drawer .dhead .when { color: var(--accent); font-weight: bold; font-size: 14px; display: block; margin-bottom: 6px; }
+  #vd .drawer .dhead .meters { display: flex; gap: 12px; flex-wrap: wrap; }
+  #vd .drawer .dtabs { flex: none; display: flex; border-bottom: 1px solid var(--line); }
+  #vd .drawer .dtabs button { flex: 1; padding: 10px 0; min-height: 44px; font-size: 13.5px; color: #6b6357; }
+  #vd .drawer .dtabs button.on { color: var(--accent); font-weight: bold; border-bottom: 2px solid var(--accent); }
+  #vd .drawer .dbody { flex: 1; overflow-y: auto; padding: 4px 16px calc(16px + env(safe-area-inset-bottom)); }
+  #vd .kv { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; border-bottom: 1px dashed #eee5d6; }
+  #vd h4 { font-size: 14px; color: var(--accent); margin: 12px 0 6px; }
+  @media (min-width: 900px) {
+    #vd .edge-handle, #vd .backdrop { display: none; }
+    #vd .drawer { transform: none; width: 320px; box-shadow: none; }
+    #vd .tophead { left: 320px; padding-left: 20px; }
+    #vd .scroll { margin-left: 320px; max-width: 640px; padding-left: 24px; }
+  }
+
+  /* ========== 方案 C：分页签应用壳 ========== */
+  [data-variant="C"] #vc { display: flex; }
+  #vc { display: none; height: 100dvh; }
+  #vc .rail { display: none; }
+  #vc .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #vc .page { flex: 1; overflow-y: auto; padding: 14px 18px 12px; max-width: 680px; width: 100%; margin: 0 auto; }
+  #vc .chipbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  #vc .chipbar button { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 5px 12px; font-size: 12.5px; min-height: 34px; }
+  #vc .chipbar button.on { border-color: var(--accent); color: var(--accent); }
+  #vc .chip-detail { display: none; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-bottom: 12px; gap: 10px; flex-wrap: wrap; }
+  #vc .chip-detail.open { display: flex; }
+  #vc .choices { display: grid; gap: 8px; margin-top: 8px; }
+  #vc .tabbar { flex: none; display: flex; border-top: 1px solid var(--line); background: var(--panel); padding-bottom: env(safe-area-inset-bottom); }
+  #vc .tabbar button { flex: 1; padding: 10px 0 12px; min-height: 52px; font-size: 13px; color: #6b6357; }
+  #vc .tabbar button.on { color: var(--accent); font-weight: bold; }
+  #vc .kv { display: flex; justify-content: space-between; font-size: 14.5px; padding: 6px 0; border-bottom: 1px dashed #eee5d6; }
+  #vc h4 { font-size: 14px; color: var(--accent); margin: 14px 0 6px; }
+  #vc .locitem { display: flex; justify-content: space-between; align-items: center; width: 100%; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; margin-bottom: 8px; font-size: 15px; }
+  #vc .locitem.now { border-color: var(--accent); color: var(--accent); }
+  #vc .locitem .cost { color: #9a9184; font-size: 12.5px; }
+  @media (min-width: 900px) {
+    #vc .rail { display: flex; flex-direction: column; gap: 4px; width: 132px; flex: none; border-right: 1px solid var(--line);
+      background: var(--panel); padding: 18px 10px; }
+    #vc .rail button { text-align: left; padding: 11px 14px; border-radius: 6px; font-size: 14.5px; color: #6b6357; min-height: 46px; }
+    #vc .rail button.on { color: var(--accent); background: #f5eee0; font-weight: bold; }
+    #vc .rail .rtitle { font-size: 12px; color: #a29a8d; padding: 0 14px 12px; }
+    #vc .tabbar { display: none; }
+  }
+</style>
+</head>
+<body data-variant="A">
+<div class="proto-tag">原型 · 用完即弃</div>
+
+<!-- ================= 方案 A：单栏滚动流 ================= -->
+<section id="va">
+  <div class="statusbar" id="va-status">
+    <div class="row1">
+      <span class="when">辰时三刻 · 第三日</span>
+      <span class="where">清河县 · 西街</span>
+      <span class="meter">气血 <i><b style="width:82%"></b></i></span>
+      <span class="meter tili">体力 <i><b style="width:64%"></b></i></span>
+      <button class="toggle" id="va-toggle">详情 ▾</button>
+    </div>
+    <div class="status-detail">
+      <span class="meter neili">内力 <i><b style="width:60%"></b></i> 18/30</span>
+      <span class="meter">银钱 1两2钱</span>
+      <span class="meter">身份 候选学徒</span>
+      <span class="meter">伤势 左臂轻伤</span>
+      <span class="meter">随行 带队弟子·脚夫</span>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="logline">你敷上金疮药，气血回复 25 点。</div>
+    <div class="story">
+      <p class="scene-head">护送 · 山道遇袭前</p>
+      <p>山道转过一道弯，松涛声里混进一声闷哼。带队弟子抬手止住队伍，顺他的目光看去：前方坡下歪着一辆驿车，车旁伏着一名驿卒，衣背渗血。</p>
+      <p>脚夫倒吸一口凉气，下意识抱紧了药材担。你摸了摸怀里的封签——辰时将尽，驿站还等着这批药。</p>
+      <p>风里没有第二个人声。太安静了。</p>
+    </div>
+    <div class="logline">察觉 判定成功：你注意到坡上的灌木新折了几枝。</div>
+  </div>
+  <div class="dock">
+    <div class="choices">
+      <button class="choice">先护住药材担，退到岩石后<small>稳妥：耗时间，可能错过救人时机</small></button>
+      <button class="choice">上前查看驿卒伤势<small>需半刻钟；或中埋伏</small></button>
+      <button class="choice">高声示警，叫破埋伏<small>赌对方人少；带队弟子好感↑</small></button>
+    </div>
+    <div class="utils">
+      <button>游历</button><button>行囊</button><button>人物</button><button>日志</button><button>存档</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 方案 B：底部抽屉 ================= -->
+<section id="vb">
+  <div class="tophead">
+    <div class="locs">
+      <button class="now">西街</button>
+      <button>县衙 <span class="cost">一刻</span></button>
+      <button>回春药铺 <span class="cost">半刻</span></button>
+      <button>武馆 <span class="cost">一刻</span></button>
+      <button>城隍庙 <span class="cost">两刻</span></button>
+      <button>城门山道 <span class="cost">半个时辰</span></button>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="story">
+      <p class="scene-head">护送 · 山道遇袭前</p>
+      <p>山道转过一道弯，松涛声里混进一声闷哼。带队弟子抬手止住队伍，顺他的目光看去：前方坡下歪着一辆驿车，车旁伏着一名驿卒，衣背渗血。</p>
+      <p>脚夫倒吸一口凉气，下意识抱紧了药材担。你摸了摸怀里的封签——辰时将尽，驿站还等着这批药。</p>
+      <p>风里没有第二个人声。太安静了。</p>
+      <p class="logline">察觉 判定成功：你注意到坡上的灌木新折了几枝。</p>
+    </div>
+    <div class="choices">
+      <button class="choice">先护住药材担，退到岩石后<small>稳妥：耗时间，可能错过救人时机</small></button>
+      <button class="choice">上前查看驿卒伤势<small>需半刻钟；或中埋伏</small></button>
+      <button class="choice">高声示警，叫破埋伏<small>赌对方人少；带队弟子好感↑</small></button>
+    </div>
+    <p class="logline" style="margin-top:16px">你敷上金疮药，气血回复 25 点。　·　辰时一刻，阴。</p>
+  </div>
+  <div class="sheet" id="vb-sheet">
+    <button class="grab" id="vb-grab">
+      <span class="pill"></span>
+      <span class="when">辰时三刻 · 第三日</span>
+      <span class="meters">
+        <span class="meter">气血 <i><b style="width:82%"></b></i> 82</span>
+        <span class="meter tili">体力 <i><b style="width:64%"></b></i> 64</span>
+        <span class="meter neili">内力 <i><b style="width:60%"></b></i> 18</span>
+      </span>
+    </button>
+    <div class="body">
+      <h4>人物</h4>
+      <div class="kv"><span>身份</span><span>照川门候选学徒</span></div>
+      <div class="kv"><span>银钱</span><span>1两2钱</span></div>
+      <div class="kv"><span>伤势</span><span>左臂轻伤（两日后愈）</span></div>
+      <div class="kv"><span>武艺</span><span>剑术入门 · 拳脚粗通</span></div>
+      <h4>行囊</h4>
+      <div class="kv"><span>金疮药 ×1</span><span>气血+25</span></div>
+      <div class="kv"><span>干粮 ×3</span><span>抵一餐</span></div>
+      <div class="kv"><span>药材担（封签）</span><span>任务物</span></div>
+      <h4>日志</h4>
+      <div class="kv"><span>入门证明</span><span>武艺✓ 人情✓ 品行—</span></div>
+      <div class="kv"><span>护送药材</span><span>进行中 · 辰时尽前送达</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= 方案 D：左侧抽屉 + 页签 ================= -->
+<section id="vd">
+  <div class="tophead">
+    <div class="locs">
+      <button class="now">西街</button>
+      <button>县衙 <span class="cost">一刻</span></button>
+      <button>回春药铺 <span class="cost">半刻</span></button>
+      <button>武馆 <span class="cost">一刻</span></button>
+      <button>城隍庙 <span class="cost">两刻</span></button>
+      <button>城门山道 <span class="cost">半个时辰</span></button>
+    </div>
+  </div>
+  <div class="scroll">
+    <div class="story">
+      <p class="scene-head">护送 · 山道遇袭前</p>
+      <p>山道转过一道弯，松涛声里混进一声闷哼。带队弟子抬手止住队伍，顺他的目光看去：前方坡下歪着一辆驿车，车旁伏着一名驿卒，衣背渗血。</p>
+      <p>脚夫倒吸一口凉气，下意识抱紧了药材担。你摸了摸怀里的封签——辰时将尽，驿站还等着这批药。</p>
+      <p>风里没有第二个人声。太安静了。</p>
+      <p class="logline">察觉 判定成功：你注意到坡上的灌木新折了几枝。</p>
+    </div>
+    <div class="choices">
+      <button class="choice">先护住药材担，退到岩石后<small>稳妥：耗时间，可能错过救人时机</small></button>
+      <button class="choice">上前查看驿卒伤势<small>需半刻钟；或中埋伏</small></button>
+      <button class="choice">高声示警，叫破埋伏<small>赌对方人少；带队弟子好感↑</small></button>
+    </div>
+    <p class="logline" style="margin-top:16px">你敷上金疮药，气血回复 25 点。　·　辰时一刻，阴。</p>
+  </div>
+  <button class="edge-handle" id="vd-handle">状态 ▸</button>
+  <div class="backdrop" id="vd-backdrop"></div>
+  <aside class="drawer" id="vd-drawer">
+    <div class="dhead">
+      <span class="when">辰时三刻 · 第三日 · 清河县西街</span>
+      <span class="meters">
+        <span class="meter">气血 <i><b style="width:82%"></b></i> 82</span>
+        <span class="meter tili">体力 <i><b style="width:64%"></b></i> 64</span>
+        <span class="meter neili">内力 <i><b style="width:60%"></b></i> 18</span>
+      </span>
+    </div>
+    <nav class="dtabs" id="vd-dtabs">
+      <button data-dtab="status" class="on">状态</button>
+      <button data-dtab="bag">行囊</button>
+      <button data-dtab="log">日志</button>
+    </nav>
+    <div class="dbody" id="vd-dbody"></div>
+  </aside>
+</section>
+
+<!-- ================= 方案 C：分页签应用壳 ================= -->
+<section id="vc">
+  <nav class="rail" id="vc-rail">
+    <div class="rtitle">江湖</div>
+    <button data-tab="story" class="on">江湖</button>
+    <button data-tab="person">人物</button>
+    <button data-tab="bag">行囊</button>
+    <button data-tab="travel">游历</button>
+  </nav>
+  <div class="main">
+    <div class="page" id="vc-page"></div>
+    <nav class="tabbar" id="vc-tabbar">
+      <button data-tab="story" class="on">江湖</button>
+      <button data-tab="person">人物</button>
+      <button data-tab="bag">行囊</button>
+      <button data-tab="travel">游历</button>
+    </nav>
+  </div>
+</section>
+
+<div id="switcher">
+  <button id="prev" aria-label="上一个方案">‹</button>
+  <span class="label" id="vlabel"></span>
+  <button id="next" aria-label="下一个方案">›</button>
+</div>
+
+<script>
+/* ---------- 方案切换 ---------- */
+const VARIANTS = {
+  A: "A（单栏滚动流）",
+  B: "B（底部抽屉）",
+  C: "C（分页签应用壳）",
+  D: "D（左侧抽屉+页签）",
+};
+const order = ["A", "B", "C", "D"];
+function currentVariant() {
+  const v = new URLSearchParams(location.search).get("variant");
+  return order.includes(v) ? v : "A";
+}
+function setVariant(v) {
+  document.body.dataset.variant = v;
+  document.getElementById("vlabel").textContent = VARIANTS[v];
+  const u = new URL(location.href); u.searchParams.set("variant", v);
+  history.replaceState(null, "", u);
+}
+function cycle(dir) {
+  const i = order.indexOf(currentVariant());
+  setVariant(order[(i + dir + order.length) % order.length]);
+}
+document.getElementById("prev").onclick = () => cycle(-1);
+document.getElementById("next").onclick = () => cycle(1);
+document.addEventListener("keydown", e => {
+  if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+  if (e.key === "ArrowLeft") cycle(-1);
+  if (e.key === "ArrowRight") cycle(1);
+});
+setVariant(currentVariant());
+
+/* ---------- A：状态详情展开 ---------- */
+document.getElementById("va-toggle").onclick = () => {
+  const bar = document.getElementById("va-status");
+  bar.classList.toggle("open");
+  document.getElementById("va-toggle").textContent = bar.classList.contains("open") ? "收起 ▴" : "详情 ▾";
+};
+
+/* ---------- B：抽屉开合 ---------- */
+document.getElementById("vb-grab").onclick = () =>
+  document.getElementById("vb-sheet").classList.toggle("open");
+
+/* ---------- C：页签切换 ---------- */
+const VC_PAGES = {
+  story: `
+    <div class="chipbar">
+      <button id="vc-chip-toggle">状态 ▾</button>
+      <button>辰时三刻 · 第三日</button>
+      <button>清河县 · 西街</button>
+    </div>
+    <div class="chip-detail" id="vc-chip-detail">
+      <span class="meter">气血 <i><b style="width:82%"></b></i> 82/100</span>
+      <span class="meter tili">体力 <i><b style="width:64%"></b></i> 64/100</span>
+      <span class="meter neili">内力 <i><b style="width:60%"></b></i> 18/30</span>
+      <span class="meter">银钱 1两2钱</span>
+      <span class="meter">伤势 左臂轻伤</span>
+    </div>
+    <div class="story">
+      <p class="scene-head">护送 · 山道遇袭前</p>
+      <p>山道转过一道弯，松涛声里混进一声闷哼。带队弟子抬手止住队伍，顺他的目光看去：前方坡下歪着一辆驿车，车旁伏着一名驿卒，衣背渗血。</p>
+      <p>脚夫倒吸一口凉气，下意识抱紧了药材担。你摸了摸怀里的封签——辰时将尽，驿站还等着这批药。</p>
+      <p>风里没有第二个人声。太安静了。</p>
+      <p class="logline">察觉 判定成功：你注意到坡上的灌木新折了几枝。</p>
+    </div>
+    <div class="choices">
+      <button class="choice">先护住药材担，退到岩石后<small>稳妥：耗时间，可能错过救人时机</small></button>
+      <button class="choice">上前查看驿卒伤势<small>需半刻钟；或中埋伏</small></button>
+      <button class="choice">高声示警，叫破埋伏<small>赌对方人少；带队弟子好感↑</small></button>
+    </div>`,
+  person: `
+    <h4>状态</h4>
+    <div class="kv"><span>气血</span><span>82 / 100</span></div>
+    <div class="kv"><span>体力</span><span>64 / 100</span></div>
+    <div class="kv"><span>内力</span><span>18 / 30</span></div>
+    <div class="kv"><span>伤势</span><span>左臂轻伤（两日后愈）</span></div>
+    <h4>武艺</h4>
+    <div class="kv"><span>剑术</span><span>入门</span></div>
+    <div class="kv"><span>拳脚</span><span>粗通</span></div>
+    <div class="kv"><span>吐纳法</span><span>初习</span></div>
+    <h4>关系</h4>
+    <div class="kv"><span>照川门带队弟子</span><span>同行 · 信任平平</span></div>
+    <div class="kv"><span>回春药铺坐堂</span><span>相识 · 略有交情</span></div>`,
+  bag: `
+    <h4>行囊</h4>
+    <div class="kv"><span>金疮药 ×1</span><span>气血+25</span></div>
+    <div class="kv"><span>干粮 ×3</span><span>抵一餐</span></div>
+    <div class="kv"><span>药材担（封签）</span><span>任务物 · 不可离手</span></div>
+    <div class="kv"><span>青钢长剑</span><span>已佩</span></div>
+    <div class="kv"><span>碎银</span><span>1两2钱</span></div>`,
+  travel: `
+    <h4>游历 · 自西街出发</h4>
+    <button class="locitem now"><span>西街</span><span class="cost">当前所在</span></button>
+    <button class="locitem"><span>县衙</span><span class="cost">步行一刻</span></button>
+    <button class="locitem"><span>回春药铺</span><span class="cost">步行半刻</span></button>
+    <button class="locitem"><span>武馆</span><span class="cost">步行一刻</span></button>
+    <button class="locitem"><span>城隍庙</span><span class="cost">步行两刻</span></button>
+    <button class="locitem"><span>城门山道</span><span class="cost">半个时辰 · 护送任务中</span></button>`,
+};
+let vcTab = "story";
+function renderVc() {
+  document.getElementById("vc-page").innerHTML = VC_PAGES[vcTab];
+  document.querySelectorAll("#vc [data-tab]").forEach(b =>
+    b.classList.toggle("on", b.dataset.tab === vcTab));
+  const t = document.getElementById("vc-chip-toggle");
+  if (t) t.onclick = () => document.getElementById("vc-chip-detail").classList.toggle("open");
+}
+document.getElementById("vc-tabbar").addEventListener("click", e => {
+  const t = e.target.dataset.tab; if (t) { vcTab = t; renderVc(); }
+});
+document.getElementById("vc-rail").addEventListener("click", e => {
+  const t = e.target.dataset.tab; if (t) { vcTab = t; renderVc(); }
+});
+renderVc();
+
+/* ---------- D：左侧抽屉开合与页签 ---------- */
+const VD_PAGES = {
+  status: `
+    <h4>状态</h4>
+    <div class="kv"><span>气血</span><span>82 / 100</span></div>
+    <div class="kv"><span>体力</span><span>64 / 100</span></div>
+    <div class="kv"><span>内力</span><span>18 / 30</span></div>
+    <div class="kv"><span>伤势</span><span>左臂轻伤（两日后愈）</span></div>
+    <div class="kv"><span>身份</span><span>照川门候选学徒</span></div>
+    <div class="kv"><span>银钱</span><span>1两2钱</span></div>
+    <h4>武艺</h4>
+    <div class="kv"><span>剑术</span><span>入门</span></div>
+    <div class="kv"><span>拳脚</span><span>粗通</span></div>
+    <h4>关系</h4>
+    <div class="kv"><span>照川门带队弟子</span><span>同行 · 信任平平</span></div>
+    <div class="kv"><span>回春药铺坐堂</span><span>相识 · 略有交情</span></div>`,
+  bag: `
+    <h4>行囊</h4>
+    <div class="kv"><span>金疮药 ×1</span><span>气血+25</span></div>
+    <div class="kv"><span>干粮 ×3</span><span>抵一餐</span></div>
+    <div class="kv"><span>药材担（封签）</span><span>任务物 · 不可离手</span></div>
+    <div class="kv"><span>青钢长剑</span><span>已佩</span></div>
+    <div class="kv"><span>碎银</span><span>1两2钱</span></div>`,
+  log: `
+    <h4>进行</h4>
+    <div class="kv"><span>护送药材</span><span>辰时尽前送达</span></div>
+    <div class="kv"><span>入门证明</span><span>武艺✓ 人情✓ 品行—</span></div>
+    <h4>近况</h4>
+    <div class="kv"><span>你敷上金疮药</span><span>气血+25</span></div>
+    <div class="kv"><span>察觉判定成功</span><span>灌木新折</span></div>`,
+};
+let vdTab = "status";
+function renderVd() {
+  document.getElementById("vd-dbody").innerHTML = VD_PAGES[vdTab];
+  document.querySelectorAll("#vd-dtabs [data-dtab]").forEach(b =>
+    b.classList.toggle("on", b.dataset.dtab === vdTab));
+}
+function vdOpen(open) {
+  document.getElementById("vd-drawer").classList.toggle("open", open);
+  document.getElementById("vd-backdrop").classList.toggle("show", open);
+}
+document.getElementById("vd-handle").onclick = () => vdOpen(true);
+document.getElementById("vd-backdrop").onclick = () => vdOpen(false);
+document.getElementById("vd-dtabs").addEventListener("click", e => {
+  const t = e.target.dataset.dtab; if (t) { vdTab = t; renderVd(); }
+});
+renderVd();
+</script>
+</body>
+</html>

@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>战斗回合原型 · 动态战斗与失败后果</title>
+<style>
+  :root { --accent: #8c2f2f; --ink: #26221c; --paper: #f7f3ec; --line: #ddd3c4; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Songti SC", "Noto Serif SC", "SimSun", serif; background: var(--paper); color: var(--ink); line-height: 1.65; }
+  main { max-width: 920px; margin: 0 auto; padding: 32px 20px 64px; }
+  h1 { font-size: 26px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 28px 0 10px; border-left: 4px solid var(--accent); padding-left: 10px; }
+  .proto-tag { display: inline-block; font-size: 12px; letter-spacing: 1px; color: #fff; background: var(--accent); padding: 2px 10px; border-radius: 3px; margin-bottom: 12px; }
+  .question { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; font-size: 15px; }
+  .question strong { color: var(--accent); }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .panels { grid-template-columns: 1fr; } }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; }
+  .panel h3 { margin: 0 0 8px; font-size: 15px; color: var(--accent); }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; font-size: 14px; }
+  .bar-row .label { width: 3.2em; flex: none; }
+  .bar { flex: 1; height: 10px; background: #ece5d8; border-radius: 5px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: var(--accent); transition: width .15s; }
+  .bar.neili > i { background: #33556e; }
+  .bar.tili > i { background: #4d6b3a; }
+  .num { width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; color: #555; font-size: 13px; }
+  .chips { margin-top: 6px; font-size: 13px; color: #555; }
+  .chip { display: inline-block; border: 1px solid var(--line); border-radius: 3px; padding: 0 8px; margin: 2px 4px 2px 0; background: #faf7f0; }
+  .chip.bad { color: var(--accent); border-color: var(--accent); }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  button { font: inherit; font-size: 14px; border: 1px solid var(--ink); background: #fff; color: var(--ink); border-radius: 4px; padding: 8px 14px; cursor: pointer; display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  button:disabled { opacity: .55; cursor: not-allowed; border-color: var(--line); color: #888; }
+  button .fx { font-size: 12px; color: #777; }
+  button:disabled .fx { color: #999; }
+  button .why { font-size: 12px; color: var(--accent); }
+  button.step { border-color: var(--accent); color: var(--accent); }
+  button.small { padding: 4px 10px; font-size: 13px; display: inline; }
+  .hint { font-size: 12.5px; color: #777; width: 100%; margin-top: 2px; }
+  .reject { color: var(--accent); font-size: 13.5px; margin-top: 8px; min-height: 1.4em; }
+  #log { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 10px 16px; max-height: 300px; overflow-y: auto; font-size: 13.5px; }
+  #log .round-head { color: var(--accent); margin-top: 8px; font-weight: bold; }
+  #log p { margin: 2px 0; }
+  #carryover { background: #fdf6ec; border: 1px solid #e3cf9f; border-radius: 6px; padding: 12px 16px; font-size: 14px; display: none; }
+  #carryover.show { display: block; }
+  #carryover h3 { margin: 0 0 6px; color: var(--accent); font-size: 15px; }
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .scenario { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; }
+  .scenario p { margin: 4px 0 12px; font-size: 14px; }
+  .steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .steps .done { opacity: .35; text-decoration: line-through; pointer-events: none; }
+  .steps .arrow { color: #aaa; }
+  .topbar { display: flex; gap: 8px; align-items: center; margin: 18px 0 6px; flex-wrap: wrap; }
+  .rng { font-size: 12px; color: #999; margin-left: auto; }
+</style>
+</head>
+<body>
+<main>
+  <div class="proto-tag">原型 · 用完即弃</div>
+  <h1>动态战斗回合与失败后果</h1>
+  <div class="question">
+    <strong>本原型要回答的问题：</strong>MVP 每回合如何生成可用行动、结算双方行为、表达信息，
+    并把<strong>胜利、逃跑、被擒或战败</strong>四种结果接回江湖生活循环？
+    点按钮驱动一场护送伏击战：玩家动作 → 敌人回应 → 回合末结算是一个原子回合；
+    不合法的动作会被拒绝且不消耗任何资源；战斗结束后，下方会列出写回江湖生活循环的持久变化。
+  </div>
+
+  <div class="topbar">
+    <button class="small" id="reset">重开一场（常规开局）</button>
+    <button class="small" id="reset-adv">重开（有先手优势）</button>
+    <span class="rng" id="rng"></span>
+  </div>
+
+  <h2>当前状态</h2>
+  <div class="panels">
+    <div class="panel" id="player-panel"></div>
+    <div class="panel" id="enemy-panel"></div>
+  </div>
+
+  <h2>可用行动（每点一次 = 提交一个完整回合）</h2>
+  <div class="actions" id="actions"></div>
+  <div class="reject" id="reject"></div>
+
+  <h2>回合记录</h2>
+  <div id="log"></div>
+
+  <div id="carryover"></div>
+
+  <h2>情景走查</h2>
+  <div class="tabs" id="tabs"></div>
+  <div class="scenario" id="scenario"></div>
+</main>
+
+<script>
+/* ============================================================
+ * 纯逻辑模块：战斗回合模型
+ * 不引用 DOM，可整体搬进正式代码库。
+ * 形状：状态机 + 纯 reducer。一个动作提交 = 玩家动作 → 敌人
+ * 回应 → 回合末结算，原子完成；不合法动作原样拒绝。
+ * ============================================================ */
+const Combat = (() => {
+  const TUNE = {
+    player: { qi: 100, neili: 30, tili: 100, medicine: 2 },
+    enemy:  { qi: 80, tili: 90, name: "伪装护卫" },
+    attack:  { costTili: 12, dmgBlade: [10, 14], dmgFist: [4, 7] },
+    heavy:   { costTili: 20, costNeili: 10, dmg: [18, 24], knockdownChance: 0.35 },
+    defend:  { regenTili: 10 },
+    breath:  { regenTili: 15, regenNeili: 8 },
+    medicineHeal: 25,
+    regenPerRound: 5,
+    enemyNormal: { costTili: 12, dmg: [8, 12] },
+    enemyHeavy:  { costTili: 25, dmg: [14, 20], knockdownChance: 0.3, disarmChance: 0.15, disarmDownedChance: 0.5 },
+    enemyHeavyChance: 0.35,
+    enemyRestBelow: 15,
+    enemyRestRegen: 20,
+    fleeBase: 0.5,
+    lightWoundAt: 0.5,   // 气血跌破 50% 留下轻伤
+    heavyWoundAt: 0.25,  // 气血跌破 25% 留下重伤
+  };
+
+  // 确定性随机：由种子+游标决定，相同状态与行动产生相同结果
+  function roll(rng) {
+    let h = (rng.seed ^ Math.imul(rng.cursor + 1, 0x9E3779B1)) >>> 0;
+    h = Math.imul(h ^ (h >>> 15), h | 1);
+    h ^= h + Math.imul(h ^ (h >>> 7), h | 61);
+    const value = ((h ^ (h >>> 14)) >>> 0) / 4294967296;
+    return { value, rng: { seed: rng.seed, cursor: rng.cursor + 1 } };
+  }
+  function rollRange(rng, [min, max]) {
+    const r = roll(rng);
+    return { value: Math.round(min + r.value * (max - min)), rng: r.rng };
+  }
+
+  function init(opts = {}) {
+    const firstStrike = !!opts.firstStrike;
+    return {
+      phase: "战斗中",
+      round: 1,
+      firstStrikePending: firstStrike, // 前期准备换来的先手：首回合敌人无法回应
+      player: {
+        qi: TUNE.player.qi, neili: TUNE.player.neili, tili: TUNE.player.tili,
+        posture: "站立", blade: "持握", medicine: TUNE.player.medicine,
+        injuries: [], woundedLight: false, woundedHeavy: false,
+      },
+      enemy: { name: TUNE.enemy.name, qi: TUNE.enemy.qi, tili: TUNE.enemy.tili, posture: "站立" },
+      defending: false,
+      outcome: null,     // victory | fled | defeated | captured
+      carryover: null,   // 战斗结束后写回江湖生活循环的持久变化
+      rng: { seed: opts.seed ?? 7, cursor: 0 },
+      log: [],
+    };
+  }
+
+  // 可用行动由状态生成：每项带前置条件、效果说明与情境标记。
+  // situational=true 的情境行动不可用时直接隐藏；常规行动不可用时禁用并说明原因。
+  const ACTIONS = [
+    { id: "attack",  label: "进击", effect: "体力-12；持刃伤害10-14，徒手4-7",
+      check: s => s.player.posture === "倒地" ? "倒地不起" :
+                  s.player.tili < TUNE.attack.costTili ? "体力不支" : null },
+    { id: "heavy",   label: "全力一击", effect: "体力-20、内力-10；伤害18-24，35%击倒",
+      check: s => s.player.posture === "倒地" ? "倒地不起" :
+                  s.player.blade === "脱手" ? "兵刃脱手" :
+                  s.player.tili < TUNE.heavy.costTili ? "体力不支" :
+                  s.player.neili < TUNE.heavy.costNeili ? "内力不足" : null },
+    { id: "defend",  label: "守势", effect: "本回合受伤减半；体力+10",
+      check: s => s.player.posture === "倒地" ? "倒地不起" : null },
+    { id: "breath",  label: "调息", effect: "体力+15、内力+8",
+      check: s => s.player.posture === "倒地" ? "倒地不起" : null },
+    { id: "stand",   label: "撑地起身", effect: "从倒地起身；敌人趁隙抢攻", situational: true,
+      check: s => s.player.posture !== "倒地" ? "并未倒地" : null },
+    { id: "recover", label: "拾回兵刃", effect: "兵刃回到手中；露出破绽", situational: true,
+      check: s => s.player.blade !== "脱手" ? "兵刃仍在手中" :
+                  s.player.posture === "倒地" ? "倒地不起" : null },
+    { id: "medicine",label: "金疮药", effect: "气血+25；数量有限",
+      check: s => s.player.medicine <= 0 ? "金疮药已用尽" :
+                  s.player.qi >= TUNE.player.qi ? "气血充盈" : null },
+    { id: "flee",    label: "夺路而逃", effect: "体力-10；体力差距定成败，失败被抢攻",
+      check: s => s.player.posture === "倒地" ? "倒地不起" :
+                  s.player.tili < 10 ? "体力不支" : null },
+    { id: "surrender", label: "束手就擒", effect: "认输被擒，进入被囚剧情", situational: true,
+      check: s => !(s.player.qi <= TUNE.player.qi * TUNE.heavyWoundAt
+                    || (s.player.posture === "倒地" && s.player.blade === "脱手"))
+                  ? "尚未被逼入绝境" : null },
+  ];
+
+  function availableActions(state) {
+    if (state.phase !== "战斗中") return [];
+    return ACTIONS.map(a => ({ ...a, reason: a.check(state) }));
+  }
+
+  function say(state, text) { state.log.push(text); }
+
+  function woundCheck(p, who, state) {
+    const max = TUNE.player.qi;
+    if (!p.woundedLight && p.qi > 0 && p.qi <= max * TUNE.lightWoundAt) {
+      p.woundedLight = true; p.injuries.push("轻伤");
+      say(state, `${who}气血大损，落下轻伤。`);
+    }
+    if (!p.woundedHeavy && p.qi > 0 && p.qi <= max * TUNE.heavyWoundAt) {
+      p.woundedHeavy = true; p.injuries.push("重伤");
+      say(state, `${who}伤可见骨，已是重伤。`);
+    }
+  }
+
+  function endIfDown(state) {
+    if (state.enemy.qi <= 0) { state.phase = "已结束"; state.outcome = "victory"; return true; }
+    if (state.player.qi <= 0) { state.phase = "已结束"; state.outcome = "defeated"; return true; }
+    return false;
+  }
+
+  function enemyAct(state) {
+    const e = state.enemy, p = state.player;
+    let r;
+    if (e.tili < TUNE.enemyRestBelow) {
+      e.tili = Math.min(TUNE.enemy.tili, e.tili + TUNE.enemyRestRegen);
+      say(state, `${e.name}后劲不济，收势喘息。`);
+      return;
+    }
+    r = roll(state.rng); state.rng = r.rng;
+    const heavy = e.tili >= TUNE.enemyHeavy.costTili && r.value < TUNE.enemyHeavyChance;
+    const spec = heavy ? TUNE.enemyHeavy : TUNE.enemyNormal;
+    e.tili -= spec.costTili;
+    const d = rollRange(state.rng, spec.dmg); state.rng = d.rng;
+    let dmg = d.value;
+    if (state.defending) dmg = Math.ceil(dmg / 2);
+    p.qi = Math.max(0, p.qi - dmg);
+    say(state, `${e.name}${heavy ? "合身重击" : "挥刀抢攻"}，你受 ${dmg} 点伤${state.defending ? "（守势减半）" : ""}。`);
+    woundCheck(p, "你", state);
+    if (heavy && p.qi > 0) {
+      const dr = roll(state.rng); state.rng = dr.rng;
+      const disarmChance = p.posture === "倒地" ? TUNE.enemyHeavy.disarmDownedChance : TUNE.enemyHeavy.disarmChance;
+      if (p.blade === "持握" && dr.value < disarmChance) {
+        p.blade = "脱手";
+        say(state, `${e.name}一记绞手磕飞你的兵刃——缴械！`);
+      } else if (p.posture !== "倒地") {
+        const kr = roll(state.rng); state.rng = kr.rng;
+        if (kr.value < TUNE.enemyHeavy.knockdownChance) {
+          p.posture = "倒地";
+          say(state, `你站立不稳，被击倒在地。`);
+        }
+      }
+    }
+  }
+
+  function settleRound(state) {
+    const p = state.player, e = state.enemy;
+    p.tili = Math.min(TUNE.player.tili, p.tili + TUNE.regenPerRound);
+    e.tili = Math.min(TUNE.enemy.tili, e.tili + TUNE.regenPerRound);
+    state.defending = false;
+    state.round += 1;
+  }
+
+  function carryoverFor(state) {
+    const p = state.player;
+    const injuries = p.injuries.length ? [...p.injuries] : [];
+    switch (state.outcome) {
+      case "victory": return {
+        结果: "胜利", 任务标记: "伏击已破",
+        货物: "药材保全", 线索: "可查验敌人装备与封签",
+        伤势: injuries.length ? injuries.join("、") : "无",
+        接回: "回到护送剧情链，进入调查与交付节拍",
+      };
+      case "fled": return {
+        结果: "逃跑", 任务标记: "弃货脱逃",
+        货物: "损失过半", 线索: "无暇查证",
+        伤势: injuries.length ? injuries.join("、") : "无",
+        接回: "失败延续：回到剧情链，任务评价降等，另生补救故事单元",
+      };
+      case "defeated": return {
+        结果: "战败", 任务标记: "惨败",
+        货物: "全失", 线索: "仅余零星印象",
+        伤势: injuries.concat(["卧床数日"]).join("、"),
+        接回: "失败延续：被同行者救回县城，写入重伤、债务与低信任，入门转为观察期",
+      };
+      case "captured": return {
+        结果: "被擒", 任务标记: "落入敌手",
+        货物: "全失", 线索: "窥见袭击者真面目（后续剧情优势）",
+        伤势: injuries.length ? injuries.join("、") : "无",
+        接回: "失败延续：进入被囚故事单元，逃脱或获救后带线索回归",
+      };
+    }
+  }
+
+  // 提交一个动作：原子完成整个回合；不合法则原样拒绝
+  function applyAction(prev, actionId) {
+    const action = ACTIONS.find(a => a.id === actionId);
+    if (!action || prev.phase !== "战斗中") {
+      return { state: prev, rejected: "战斗已结束，请重开一场或查看写回结果" };
+    }
+    const reason = action.check(prev);
+    if (reason) return { state: prev, rejected: reason }; // 不启动回合，不消耗 RNG 与资源
+
+    const s = JSON.parse(JSON.stringify(prev));
+    const p = s.player, e = s.enemy;
+    s.log.push(`—— 第 ${s.round} 回合 ——`);
+    let acted = true;
+
+    switch (actionId) {
+      case "attack": {
+        p.tili -= TUNE.attack.costTili;
+        const spec = p.blade === "持握" ? TUNE.attack.dmgBlade : TUNE.attack.dmgFist;
+        const d = rollRange(s.rng, spec); s.rng = d.rng;
+        e.qi = Math.max(0, e.qi - d.value);
+        say(s, `你${p.blade === "持握" ? "挥刃进击" : "徒手抢攻"}，${e.name}受 ${d.value} 点伤。`);
+        break;
+      }
+      case "heavy": {
+        p.tili -= TUNE.heavy.costTili; p.neili -= TUNE.heavy.costNeili;
+        const d = rollRange(s.rng, TUNE.heavy.dmg); s.rng = d.rng;
+        e.qi = Math.max(0, e.qi - d.value);
+        say(s, `你运足内力全力一击，${e.name}受 ${d.value} 点伤。`);
+        const k = roll(s.rng); s.rng = k.rng;
+        if (e.qi > 0 && k.value < TUNE.heavy.knockdownChance) {
+          e.posture = "倒地";
+          say(s, `${e.name}被你击倒在地。`);
+        }
+        break;
+      }
+      case "defend":
+        s.defending = true;
+        p.tili = Math.min(TUNE.player.tili, p.tili + TUNE.defend.regenTili);
+        say(s, "你稳扎守势，寻隙待变。");
+        break;
+      case "breath":
+        p.tili = Math.min(TUNE.player.tili, p.tili + TUNE.breath.regenTili);
+        p.neili = Math.min(TUNE.player.neili, p.neili + TUNE.breath.regenNeili);
+        say(s, "你且战且退，调息回气。");
+        break;
+      case "stand":
+        p.posture = "站立";
+        say(s, "你撑地跃起，重新站稳。");
+        break;
+      case "recover":
+        p.blade = "持握";
+        say(s, "你翻滚拾回兵刃，露出破绽。");
+        break;
+      case "medicine":
+        p.medicine -= 1;
+        p.qi = Math.min(TUNE.player.qi, p.qi + TUNE.medicineHeal);
+        say(s, `你敷上金疮药，气血回复 ${TUNE.medicineHeal} 点。`);
+        break;
+      case "flee": {
+        p.tili -= 10;
+        const chance = TUNE.fleeBase + (p.tili - e.tili) / 200;
+        const r = roll(s.rng); s.rng = r.rng;
+        if (r.value < chance) {
+          say(s, "你觑准空档夺路而逃，甩开了追兵。");
+          s.phase = "已结束"; s.outcome = "fled";
+        } else {
+          say(s, `${e.name}识破你的意图，抢身封住去路！`);
+        }
+        break;
+      }
+      case "surrender":
+        say(s, "你弃械伏地，被反剪双手——束手就擒。");
+        s.phase = "已结束"; s.outcome = "captured";
+        break;
+    }
+
+    // 敌人回应：先手优势可跳过首回合回应
+    if (s.phase === "战斗中" && acted) {
+      if (endIfDown(s)) {
+        say(s, s.outcome === "victory" ? `${e.name}颓然倒地，伏击已破。` : "");
+      } else if (s.firstStrikePending) {
+        s.firstStrikePending = false;
+        say(s, "凭前期准备抢得先手，敌人尚未回神，无法回应。");
+      } else {
+        enemyAct(s);
+        endIfDown(s);
+      }
+    }
+    // 回合末结算（与动作同属一个原子提交）
+    if (s.phase === "战斗中") settleRound(s);
+    else s.carryover = carryoverFor(s);
+
+    return { state: s, rejected: null };
+  }
+
+  return { init, availableActions, applyAction, TUNE };
+})();
+
+/* ============================================================
+ * 页面外壳：用完即弃，仅负责渲染与派发
+ * ============================================================ */
+let state = Combat.init();
+let rejectMsg = "";
+
+const $ = id => document.getElementById(id);
+
+function bar(label, cls, val, max) {
+  return `<div class="bar-row"><span class="label">${label}</span>
+    <span class="bar ${cls}"><i style="width:${Math.max(0, val / max * 100)}%"></i></span>
+    <span class="num">${val} / ${max}</span></div>`;
+}
+
+function render() {
+  const T = Combat.TUNE, p = state.player, e = state.enemy;
+
+  $("player-panel").innerHTML = `<h3>你（候选学徒）</h3>
+    ${bar("气血", "", p.qi, T.player.qi)}
+    ${bar("内力", "neili", p.neili, T.player.neili)}
+    ${bar("体力", "tili", p.tili, T.player.tili)}
+    <div class="chips">
+      <span class="chip">${p.posture}</span>
+      <span class="chip">兵刃：${p.blade}</span>
+      <span class="chip">金疮药 × ${p.medicine}</span>
+      ${p.injuries.map(i => `<span class="chip bad">${i}</span>`).join("")}
+    </div>`;
+
+  $("enemy-panel").innerHTML = `<h3>${e.name}（伏击者）</h3>
+    ${bar("气血", "", e.qi, T.enemy.qi)}
+    ${bar("体力", "tili", e.tili, T.enemy.tili)}
+    <div class="chips"><span class="chip">${e.posture}</span>
+    ${state.firstStrikePending ? '<span class="chip bad">被你抢了先手</span>' : ""}</div>`;
+
+  const list = Combat.availableActions(state);
+  $("actions").innerHTML = state.phase !== "战斗中"
+    ? `<div class="hint">战斗已结束（${state.carryover ? state.carryover.结果 : ""}）。可重开一场，或查看下方写回江湖生活循环的变化。</div>`
+    : list.filter(a => !(a.situational && a.reason)).map(a =>
+        `<button data-act="${a.id}" ${a.reason ? "disabled" : ""}>
+          <b>${a.label}</b><span class="fx">${a.effect}</span>
+          ${a.reason ? `<span class="why">${a.reason}</span>` : ""}
+        </button>`).join("");
+
+  $("reject").textContent = rejectMsg ? `拒绝：${rejectMsg}（回合未开始，无任何消耗）` : "";
+  $("rng").textContent = `随机种子 ${state.rng.seed} · 游标 ${state.rng.cursor} · 第 ${state.round} 回合 · ${state.phase}`;
+
+  $("log").innerHTML = state.log.length
+    ? state.log.map(l => l.startsWith("——") ? `<p class="round-head">${l}</p>` : `<p>${l}</p>`).join("")
+    : `<p style="color:#999">尚无记录。点上方任意行动开始第一回合。</p>`;
+  $("log").scrollTop = $("log").scrollHeight;
+
+  const c = state.carryover;
+  $("carryover").className = c ? "show" : "";
+  if (c) $("carryover").innerHTML = `<h3>写回江湖生活循环（持久变化）</h3>` +
+    Object.entries(c).map(([k, v]) => `<div><strong>${k}：</strong>${v}</div>`).join("");
+}
+
+function dispatch(act) {
+  const r = Combat.applyAction(state, act);
+  state = r.state;
+  rejectMsg = r.rejected;
+  render();
+}
+
+function reset(firstStrike, seed) {
+  state = Combat.init({ firstStrike, seed: seed ?? 7 });
+  rejectMsg = "";
+  render();
+}
+
+$("actions").addEventListener("click", ev => {
+  const btn = ev.target.closest("button[data-act]");
+  if (btn && !btn.disabled) dispatch(btn.dataset.act);
+});
+$("reset").addEventListener("click", () => reset(false));
+$("reset-adv").addEventListener("click", () => reset(true));
+
+/* ---------- 情景走查 ---------- */
+const SCENARIOS = [
+  { name: "快意破敌（胜利）",
+    desc: "有武艺证明换来的先手优势。抢先全力一击，再以进击收束，观察：首回合敌人无法回应、回合原子结算、胜利后写回“伏击已破”。",
+    firstStrike: true, seed: 2,
+    steps: ["heavy", "attack", "attack", "attack", "heavy", "attack", "attack"] },
+  { name: "倒地缴械（边缘）",
+    desc: "常规开局硬拼，被敌人重击缴械、击倒在地。观察：倒地后大多数行动被拒绝且零消耗，必须先“撑地起身”再“拾回兵刃”，期间敌人趁隙抢攻。",
+    firstStrike: false, seed: 68,
+    steps: ["attack", "attack", "attack", "stand", "recover", "attack", "defend", "attack"] },
+  { name: "夺路而逃（逃跑）",
+    desc: "不恋战，直接尝试逃跑。体力差距决定成败，失败会被抢攻；成功后观察写回的“弃货脱逃”——货物损失过半、任务评价降等，失败延续而非结束。",
+    firstStrike: false, seed: 8,
+    steps: ["flee", "flee", "flee"] },
+  { name: "不敌被擒（失败延续）",
+    desc: "先调息耗尽节奏、任人抢攻，待倒地且兵刃脱手（或重伤）后“束手就擒”才会解锁。观察第四种结局：被擒后进入被囚故事单元，并带回“窥见袭击者真面目”的后续优势。",
+    firstStrike: false, seed: 9,
+    steps: ["breath", "breath", "breath", "breath", "breath", "surrender"] },
+];
+
+let currentScenario = null;
+
+function renderTabs() {
+  $("tabs").innerHTML = SCENARIOS.map((s, i) =>
+    `<button class="small ${i === currentScenario ? "active" : ""}" data-tab="${i}">${s.name}</button>`).join("");
+  const box = $("scenario");
+  if (currentScenario === null) {
+    box.innerHTML = `<p style="color:#999">选择一个情景，按给定顺序点击，每个情景都会先重开一场固定的战斗。</p>`;
+    return;
+  }
+  const s = SCENARIOS[currentScenario];
+  box.innerHTML = `<p>${s.desc}</p>
+    <div class="steps">
+      <button class="small step" data-start>重开并开始</button>
+      ${s.steps.map((a, i) => `<span class="arrow">→</span>
+        <button class="small" data-step="${i}">${labelOf(a)}</button>`).join("")}
+    </div>`;
+}
+
+function labelOf(id) {
+  const names = { attack: "进击", heavy: "全力一击", defend: "守势", breath: "调息",
+    stand: "撑地起身", recover: "拾回兵刃", medicine: "金疮药", flee: "夺路而逃", surrender: "束手就擒" };
+  return names[id] || id;
+}
+
+let stepCursor = -1;
+$("tabs").addEventListener("click", ev => {
+  const t = ev.target.dataset && ev.target.dataset.tab;
+  if (t === undefined) return;
+  currentScenario = Number(t);
+  stepCursor = -1;
+  renderTabs();
+});
+$("scenario").addEventListener("click", ev => {
+  const d = ev.target.dataset || {};
+  if (d.start !== undefined) {
+    const s = SCENARIOS[currentScenario];
+    reset(s.firstStrike, s.seed);
+    stepCursor = 0;
+    markSteps();
+    return;
+  }
+  if (d.step !== undefined && Number(d.step) === stepCursor) {
+    dispatch(SCENARIOS[currentScenario].steps[stepCursor]);
+    stepCursor += 1;
+    markSteps();
+  }
+});
+function markSteps() {
+  document.querySelectorAll("#scenario [data-step]").forEach(btn => {
+    const i = Number(btn.dataset.step);
+    btn.classList.toggle("done", i < stepCursor);
+    btn.disabled = i !== stepCursor;
+  });
+  const startBtn = document.querySelector("#scenario [data-start]");
+  if (startBtn && stepCursor >= 0) startBtn.textContent = "重开（重新开始本情景）";
+}
+
+render();
+renderTabs();
+</script>
+</body>
+</html>

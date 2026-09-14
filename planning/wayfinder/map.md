@@ -26,6 +26,9 @@ issue_url: https://github.com/mnikn/text-wuxia/issues/1
 - [定义首次门派任务的完整试玩路径](https://github.com/mnikn/text-wuxia/issues/3)：以七日内取得两类证明、药材护送及四级失败延续构成 1～2 小时切片，最终进入照川门，特殊招式不进入本切片。
 - [研究 DoL 的行动与 Passage 生命周期](https://github.com/mnikn/text-wuxia/issues/12)：只借鉴集中时间轴、跨边界结算和动作后事件选择；领域事务由 TypeScript 原子提交，SugarCube Passage 只读渲染，禁止渲染期写状态或抽 RNG。
 - [定义游戏状态与行动事务边界](https://github.com/mnikn/text-wuxia/issues/4)：`State.variables.game` 保存领域化权威快照，全部行动经确定性、可回滚事务提交；时间调度、事件入口与提交后副作用具有固定顺序，局部 ECS 只作为未来模块内部实现。
+- [定义动态战斗回合与失败后果](https://github.com/mnikn/text-wuxia/issues/5)：行动由战斗状态生成（常规行动禁用示因、情境行动隐藏），每回合为玩家动作→敌人回应→回合末结算的原子事务；敌人仅抢攻/重击/喘息；胜利、逃跑、战败、被擒四结局均以失败延续写回江湖生活循环。
+- [定义手机优先交互壳](https://github.com/mnikn/text-wuxia/issues/6)：采用方案 D：全屏正文+横滑地点胶囊导航+左侧抽屉（状态/行囊/日志页签，头常驻时辰与三维）；移动端把手滑出，桌面端固化为左栏；反馈以 logline 嵌入正文流。
+- [定义故事单元 DSL 契约](https://github.com/mnikn/text-wuxia/issues/7)：一个故事单元 = 一个 Twee passage，条件/选择/检定/效果以自定义宏内联正文流；构建期提取器编译注册表，运行时宏渲染空操作、选择由交互壳渲染；once/cooldown/mutex + priority 分层加权 + next 链接 + 检定档带。
 
 ## Not yet specified
 
