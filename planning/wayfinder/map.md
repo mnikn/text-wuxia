@@ -29,6 +29,7 @@ issue_url: https://github.com/mnikn/text-wuxia/issues/1
 - [定义动态战斗回合与失败后果](https://github.com/mnikn/text-wuxia/issues/5)：行动由战斗状态生成（常规行动禁用示因、情境行动隐藏），每回合为玩家动作→敌人回应→回合末结算的原子事务；敌人仅抢攻/重击/喘息；胜利、逃跑、战败、被擒四结局均以失败延续写回江湖生活循环。
 - [定义手机优先交互壳](https://github.com/mnikn/text-wuxia/issues/6)：采用方案 D：全屏正文+横滑地点胶囊导航+左侧抽屉（状态/行囊/日志页签，头常驻时辰与三维）；移动端把手滑出，桌面端固化为左栏；反馈以 logline 嵌入正文流。
 - [定义故事单元 DSL 契约](https://github.com/mnikn/text-wuxia/issues/7)：一个故事单元 = 一个 Twee passage，条件/选择/检定/效果以自定义宏内联正文流；构建期提取器编译注册表，运行时宏渲染空操作、选择由交互壳渲染；once/cooldown/mutex + priority 分层加权 + next 链接 + 检定档带。
+- [定义存档契约与迁移起点](https://github.com/mnikn/text-wuxia/issues/8)：自有存档层（SugarCube 不参与），存档包 = meta + GameState 快照；整数版本 + 纯函数迁移链；双缓冲原子写 + 行动后自动存档（1 自动 + 3 手动）；IndexedDB + persist；设置页导出/导入。
 
 ## Not yet specified
 
