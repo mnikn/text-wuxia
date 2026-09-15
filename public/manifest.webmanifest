@@ -1,0 +1,20 @@
+{
+  "name": "清河江湖 · 武侠生活模拟",
+  "short_name": "清河江湖",
+  "description": "写实架空武侠江湖生活模拟 · MVP 完整试玩",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f3ec",
+  "theme_color": "#8c2f2f",
+  "icons": [
+    {
+      "src": "./icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
