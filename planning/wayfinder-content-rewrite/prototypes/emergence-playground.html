@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>日常涌现沙盘 · 主线手写与日常涌现的边界</title>
+<style>
+  :root {
+    --ink: #2a2620;
+    --paper: #f7f3ea;
+    --card: #fffdf8;
+    --accent: #2b5a6a;
+    --accent-soft: #e3edef;
+    --danger: #8b3a2f;
+    --muted: #8a8375;
+    --line: #ddd6c8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.7;
+    padding: 24px 16px 80px;
+    max-width: 1060px;
+    margin: 0 auto;
+  }
+  header { border-bottom: 3px double var(--line); padding-bottom: 16px; margin-bottom: 20px; }
+  h1 { font-size: 26px; letter-spacing: 2px; color: var(--accent); }
+  header .sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  header .question {
+    background: var(--accent-soft);
+    border-left: 4px solid var(--accent);
+    padding: 10px 14px;
+    margin-top: 12px;
+    font-size: 14.5px;
+  }
+  h2 { font-size: 18px; color: var(--accent); margin: 26px 0 10px; letter-spacing: 1px; }
+  h3 { font-size: 15px; margin: 14px 0 8px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+  .card .cardtitle { font-size: 12.5px; color: var(--muted); letter-spacing: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+  .kv { display: flex; justify-content: space-between; gap: 8px; padding: 1.5px 0; }
+  .kv .k { color: var(--muted); white-space: nowrap; }
+  .kv .v { text-align: right; }
+  .v.on { color: var(--danger); font-weight: bold; }
+  .v.off { color: var(--muted); }
+  .btns { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    padding: 7px 14px;
+    background: var(--card);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  button:hover { background: var(--accent-soft); }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:hover { background: #1f4653; }
+  button.warn { border-color: var(--danger); color: var(--danger); }
+  button.warn:hover { background: #f5e6e2; }
+  button:disabled { opacity: .4; cursor: default; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid var(--line); padding-bottom: 0; margin-top: 8px; }
+  .tab {
+    padding: 8px 16px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    background: var(--card);
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .tab.active { color: var(--accent); border-color: var(--accent); background: var(--card); font-weight: bold; position: relative; top: 2px; border-bottom: 2px solid var(--card); }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+  .panel .desc { font-size: 13.5px; color: var(--muted); margin-bottom: 10px; }
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 10px;
+    border-left: 3px solid var(--line);
+    margin-bottom: 6px;
+    background: #fbf9f2;
+  }
+  .step.current { border-left-color: var(--accent); background: var(--accent-soft); }
+  .step.done { opacity: .55; }
+  .step .n { font-size: 12px; color: var(--muted); padding-top: 3px; min-width: 44px; }
+  .step .hint { font-size: 13px; color: var(--muted); }
+  .step .act { margin-top: 6px; }
+  .log {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    max-height: 460px;
+    overflow-y: auto;
+  }
+  .logentry { padding: 7px 8px; border-bottom: 1px dashed var(--line); }
+  .logentry .meta { font-size: 12px; color: var(--muted); margin-bottom: 2px; }
+  .logentry .meta .tag { display: inline-block; padding: 0 6px; border: 1px solid var(--muted); border-radius: 3px; margin-right: 6px; font-size: 11.5px; }
+  .logentry .meta .tag.tier2 { color: var(--danger); border-color: var(--danger); }
+  .logentry .meta .tag.filler { color: var(--muted); }
+  .logentry .body { white-space: pre-wrap; }
+  .logentry.event { background: #fdfbf4; }
+  .logentry.sys { color: var(--muted); font-size: 12.5px; }
+  .logentry .binding { font-size: 12px; color: var(--accent); margin-top: 3px; font-family: inherit; }
+  .foot { margin-top: 30px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .flash { animation: flash 1s ease-out; }
+  @keyframes flash { 0% { background: #f4e2c8; } 100% { background: transparent; } }
+  .changed { background: #f4ecd9; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>日常涌现沙盘</h1>
+  <div class="sub">洺川县 · 白身 → 别院学徒 → 苍岩记名弟子 · 原型（丢弃物 · 票据 <a href="https://github.com/mnikn/text-wuxia/issues/17">#17</a> · 决议已回填 2026-09-15：规则确认，原型 UI 仅作叙事验证）</div>
+  <div class="question">
+    <b>这个沙盘回答的问题：</b>「主线手写 + 日常涌现」的边界在哪？日常事件素材化——事件模板、素材槽位（人物/物品/地点/天气）、组合规则——与现有入口评估（priority 分层 / 层内加权随机 / mutex）如何咬合？涌现事件如何引用主线状态、又如何被主线压制？<br>
+    <b>核心主张（待你反应）：</b>涌现不是独立系统。运行时把「模板 × 当前素材」展开成候选实例，塞进<b>同一个</b>入口评估管道（priority 第 4 层普通随机 + weight + mutex）；主线压制走<b>双通道</b>——priority 分层天然压制（剧情强制层有候选时日常层不参评）+ 模板 when 显式点亮/熄灭（药钱断供点亮催账、熄灭闲话）。<br>
+    <b>玩法：</b>「度过一个时辰」滚一次入口评估；出事件后须在下方「活跃事件」面板里点一个选项（检定、银钱、体力都会真结算），时辰才继续——对应正式引擎 stories.active 的模态语义。
+  </div>
+</header>
+
+<h2>当前世界状态</h2>
+<div class="cards" id="stateCards"></div>
+<div id="pendingWrap"></div>
+<div class="btns" id="stateBtns"></div>
+<div id="stateNote" style="font-size:12.5px;color:var(--muted);"></div>
+
+<h2>入口评估沙盘</h2>
+<div class="btns">
+  <button class="primary" id="hourBtn" onclick="UI.spendHour()">度过一个时辰（跑一次入口评估）</button>
+  <button onclick="UI.rollTen()">连抽 10 时辰（自动结算，看重复率）</button>
+  <button onclick="UI.reset()">重置（回到初始种子）</button>
+</div>
+
+<h2>引导场景</h2>
+<div class="tabs" id="tabs"></div>
+<div class="panel" id="tabPanel"></div>
+
+<h2>事件记录</h2>
+<div class="log" id="log"></div>
+
+<div class="foot">
+  逻辑模块（<code>Emergence</code>，页面底部的 &lt;script&gt; 前半段）为纯函数、无 DOM 依赖，验证后可整体抬走。<br>
+  检定结果由种子 RNG 决定（mulberry32，同种子同序列）——沿用引擎「快照 + 种子 = 确定性」语义。
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+ * 纯逻辑模块：Emergence（可整体抬走，无 DOM 依赖）
+ * ================================================================ */
+
+// ---- 种子 RNG（mulberry32）----
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ---- 素材库（世界材料）----
+const PLACES = ["城郊家村", "南门贫巷", "牙市", "苍岩别院", "药铺", "当铺", "黑市", "官道渡口"];
+
+const CAST = {
+  yapo:    { name: "牙市婆",   locs: ["牙市"],           tags: ["门路", "消息"] },
+  zhanggui:{ name: "货栈掌柜", locs: ["牙市"],           tags: ["雇主", "精明"] },
+  kui_bing:{ name: "溃兵头目", locs: ["官道渡口"],        tags: ["乱源", "凶横"] },
+  luo_a:   { name: "溃兵喽啰·独眼", locs: ["南门贫巷", "官道渡口"], tags: ["乱源", "喽啰"] },
+  luo_b:   { name: "溃兵喽啰·麻脸", locs: ["南门贫巷", "官道渡口"], tags: ["乱源", "喽啰"] },
+  zhou:    { name: "周管事",   locs: ["苍岩别院"],        tags: ["别院", "差遣"] },
+  quan:    { name: "教场老拳师", locs: ["苍岩别院"],      tags: ["别院", "教习"] },
+  chaofeng:{ name: "当铺朝奉", locs: ["当铺"],           tags: ["商", "刻薄"] },
+  yaohuo:  { name: "药铺伙计", locs: ["药铺"],           tags: ["商", "药线"] },
+  pi_shou: { name: "地痞·瘦猴", locs: ["南门贫巷", "牙市"], tags: ["市井", "泼皮"] },
+  pi_pan:  { name: "地痞·胖六", locs: ["南门贫巷", "牙市"], tags: ["市井", "泼皮"] },
+  niang:   { name: "母亲",     locs: ["城郊家村"],        tags: ["私线"] },
+};
+
+const WEATHERS = ["晴", "阴", "细雨", "大风", "酷寒"];
+
+// 玩家随身物品（当铺压价模板的槽位素材）
+const ITEMS = ["褪色木簪", "拣的长枪头", "半新的棉袄", "两斤干粮"];
+
+// 牙市婆闲话的消息池：分常态线与断药线（引用主线状态）
+const NEWS_NORMAL = [
+  { id: "zhangyi", text: "「彰义军营里这两日杀猪宰羊，怕是要开拔。当兵的一动，官道上就不清净咯。」" },
+  { id: "wutai",   text: "「武泰军的探子进城了，装作贩皮货的。你莫要多瞧，瞧多了眼生。」" },
+  { id: "biao",    text: "「苍岩别院接了笔大镖，听说是姓沈的绸缎商走的西路。周管事这几日都在挑人手。」" },
+  { id: "mijia",   text: "「米价又涨了三成。掌柜们都说，再涨下去，城里要出叫花子兵。」" },
+  { id: "heishi",  text: "「黑市上出了批南边来的兵器，来路不干净。想发财的都往那儿钻，想活命的都绕着走。」" },
+];
+const NEWS_DEBT = [
+  { id: "yaqian", text: "「你娘那药钱还欠着罢？济生堂的伙计前日在牙市念叨呢。」她压低了声音，「先顾着病人，别的都是虚的。」" },
+  { id: "gudao",  text: "「这般世道，穷人家摊上个病人，就是摊上座山。」牙市婆叹口气，不再多说。" },
+];
+
+// 街景氛围的细节池（纯 padding 层，检验「零风险内容是否无聊」）
+const STREET_SCENE = {
+  "晴":   ["日头晒得青石板发白，货担的影子缩成一小团。", "街口有卖蒸饼的，热气一阵阵扑过来，引得几个流民直咽唾沫。", "茶棚底下两个脚夫在掰扯工钱，唾沫星子隔着半条街都看得见。"],
+  "阴":   ["天色灰蒙蒙的，像一口倒扣的锅，压得人心头发沉。", "行人步子都急，天要变，谁也不想淋在半道上。", "檐下蹲着一溜卖山货的，筐里的干蘑蔫蔫的，没人问价。"],
+  "细雨": ["细雨如酥，屋檐滴水连成了线。青石板上人影寥寥。", "雨里传来更夫的梆子声，闷闷的，敲一下，散一片。", "卖伞的倒是发了市，只是收摊也快——雨一停，伞就不值钱了。"],
+  "大风": ["风卷着尘土扑面，幌子拍得啪啪响，说话都得凑近了喊。", "大风天街上没生意，掌柜们都缩在柜台后头打盹。", "一阵风过，卷起满地的草屑纸钱，打着旋儿往城门去了。"],
+  "酷寒": ["寒气像刀子，往骨头缝里钻。墙根下蜷着的人一动不动。", "护城河冻了薄冰，几个半大孩子在上头扔石子，笑声发飘。", "当铺门口冻出一溜冰溜子，进出的人都攥着袖子小跑。"],
+};
+
+// 别院杂役的差事池
+const CHORES = [
+  { id: "sao",    text: "扫教场",     note: "老拳师看着你扫，末了说一句「脚下要有根」" },
+  { id: "songxin",text: "送信去药铺", note: "周管事差你去药铺取一包药材，顺带认认路" },
+  { id: "bangchu",text: "帮厨劈柴",   note: "伙房柴湿了，劈到掌灯时分" },
+];
+
+// ---- 事件模板 ----
+// 每个模板：slots（槽位与约束）、when（主线状态引用）、weight、cooldown 时辰、mutex、
+// 绑定器 bind(state) 返回有效绑定数组（组合规则在这里），render(state, binding) 出金庸腔正文。
+// 重要：所有涌现模板 priority 固定 = 4（普通随机层），与手写日常同层同权竞争。
+const TEMPLATES = [
+
+  {
+    id: "t.yashi.gossip", title: "牙市 · 闲话", mutex: "市井",
+    weight: 8, cooldownHours: 8, priority: 4,
+    when: (s) => s.place === "牙市",
+    bind: (s) => {
+      const pool = s.debtDays >= 2 ? NEWS_DEBT : (s.debtDays >= 1 ? [...NEWS_DEBT, ...NEWS_NORMAL] : NEWS_NORMAL);
+      return pool.map(n => ({ teller: "yapo", news: n.id }));
+    },
+    render: (s, b) => {
+      const n = (s.debtDays >= 1 ? [...NEWS_DEBT, ...NEWS_NORMAL] : NEWS_NORMAL).find(x => x.id === b.news);
+      return [`牙市婆正在摊子后头择菜，见你过来，抬了抬下巴。`,
+              n.text];
+    },
+    choices: () => [
+      { id: "ask", label: "多问两句", note: "追问消息来路（口才检定）",
+        check: { label: "口才", prob: 0.55 },
+        success: { log: "牙市婆左右看了看，又透出半句：「那探子就住在南门外骡马店。听了就忘，莫说是我讲的。」" },
+        fail: { effects: {}, log: "牙市婆把菜篮一收：「问恁多做什么？嘴上没个把门的，迟早惹祸。」" } },
+      { id: "leave", label: "道谢走开", default: true },
+    ],
+  },
+
+  {
+    id: "t.yashi.work", title: "牙市 · 招工", mutex: "市井",
+    // 与「牙市 · 闲话」共享 mutex 组「市井」：同一次评估里牙市人文事件至多取一
+    weight: 6, cooldownHours: 10, priority: 4,
+    when: (s) => s.place === "牙市" && s.rank !== "记名弟子",
+    bind: () => [
+      { cargo: "绸缎包" }, { cargo: "粮袋" }, { cargo: "铁锭箱" },
+    ],
+    render: (s, b) => [
+      `货栈掌柜立在阶上，正扯着嗓子点人：「卸${b.cargo}的，一趟三文，管一顿干饭！」`,
+      `他的目光扫过你，多了半分留意——这少年身板单薄，眼神倒是不躲人。`,
+    ],
+    choices: () => [
+      { id: "take", label: "应工卸货", note: "体力 -18，+9 文管一顿干饭",
+        effects: { money: 9, stamina: -18, log: "日头偏西时结账：九文钱，一身汗，两手茧。货栈掌柜点了点头。" } },
+      { id: "skip", label: "走开", default: true,
+        effects: { log: "你从人堆边上绕了过去。" } },
+    ],
+  },
+
+  {
+    id: "t.street.hassle", title: "街面 · 纠缠", mutex: "街面",
+    weight: 6, cooldownHours: 12, priority: 4,
+    // 主线压制（when 通道）：镖差进行中 = 人在官道上，城里街面事件全灭
+    when: (s) => ["南门贫巷", "牙市"].includes(s.place) && !s.escortActive && s.weather !== "细雨",
+    bind: (s) => {
+      const thugs = Object.entries(CAST)
+        .filter(([id, c]) => c.locs.includes(s.place) && (c.tags.includes("乱源") || c.tags.includes("市井")))
+        .map(([id]) => id);
+      const pretexts = [
+        { id: "toll",   text: "拦住去路，伸手要「借」几个铜钱" },
+        { id: "stare",  text: "上下打量你，说你看他的眼神不对" },
+        { id: "steal",  text: "一口咬定你踩了他的脚，不赔钱不许走" },
+      ];
+      const out = [];
+      for (const t of thugs) for (const p of pretexts) out.push({ thug: t, pretext: p.id });
+      return out;
+    },
+    render: (s, b) => {
+      const c = CAST[b.thug];
+      const p = { toll: "拦住去路，伸手要「借」几个铜钱", stare: "上下打量你，说你看他的眼神不对", steal: "一口咬定你踩了他的脚，不赔钱不许走" }[b.pretext];
+      return [`${c.name}${s.place === "南门贫巷" ? "缩在巷口的阴影里" : "从人堆里晃出来"}，${p}。`,
+              "周围行人眼观鼻、鼻观心，绕着走开。"];
+    },
+    choices: () => [
+      { id: "pay", label: "给钱息事", note: "破财免灾：8 文", cost: { money: 8 },
+        effects: { money: -8, log: "你摸出八文钱递过去。他掂了掂，啐了一口，总算让开路。" } },
+      { id: "shout", label: "厉声喝退", note: "胆气检定，不花钱",
+        check: { label: "胆气", prob: 0.5 },
+        success: { log: "你眼一瞪，声若洪钟：「滚开！」他愣了愣，骂骂咧咧散了。围观的人多了半分敬意。" },
+        fail: { effects: { stamina: -8 }, log: "你声音发了虚。他嘿嘿一笑，推了你一把：「哪儿来的雏儿。」" } },
+      { id: "fight", label: "动手", note: "拳脚检定，见血",
+        check: { label: "拳脚", prob: 0.45 },
+        success: { log: "三两招下来他吃了亏，捂着手腕退进人堆。有汉子远远叫了声好。" },
+        fail: { effects: { stamina: -15, money: -5 }, log: "你被按在地上蹭了一脸土，钱袋也让人趁乱摸去了几文。" } },
+    ],
+  },
+
+  {
+    id: "t.pawn.haggle", title: "当铺 · 压价", mutex: null,
+    weight: 5, cooldownHours: 24, priority: 4,
+    when: (s) => s.place === "当铺",
+    bind: (s) => ITEMS.filter(i => !s.pawned.includes(i)).map(i => ({ item: i })),
+    render: (s, b) => [
+      `当铺朝奉接过那${b.item}，翻来覆去看了看，从鼻子里哼出一声。`,
+      `「乱世当东西的多，赎东西的少。这物件——」他把${b.item}往柜上一搁，「死当三十文，活当二十文，爱当不当。」`,
+    ],
+    choices: (s, b) => [
+      { id: "dead", label: "死当", note: "+30 文，物件不赎",
+        effects: { money: 30, pawnItem: true, log: "朝奉把物件丢进筐里，三十文铜钱推过来，码得整整齐齐。" } },
+      { id: "live", label: "活当", note: "+20 文，旬内可赎",
+        effects: { money: 20, log: "朝奉开了张当票，字迹潦草：「旬内来赎，过时不候。」" } },
+      { id: "back", label: "收回不当", default: true,
+        effects: { log: "你把东西收回怀里。朝奉眼皮都没抬。" } },
+    ],
+  },
+
+  {
+    id: "t.weather.scene", title: "街景 · 氛围", mutex: null,
+    weight: 4, cooldownHours: 3, priority: 4, filler: true,
+    when: () => true,
+    bind: (s) => STREET_SCENE[s.weather].map((_, i) => ({ detail: s.weather + ":" + i })),
+    render: (s, b) => {
+      const i = Number(b.detail.split(":")[1]);
+      return [STREET_SCENE[s.weather][i]];
+    },
+    choices: () => [
+      { id: "go", label: "继续赶路", default: true,
+        effects: { log: "你裹了裹衣裳，接着走。" } },
+    ],
+  },
+
+  {
+    id: "t.sect.chore", title: "别院 · 杂役", mutex: "别院",
+    weight: 7, cooldownHours: 10, priority: 4,
+    // 主线状态引用：身份链。白身不参评。
+    when: (s) => s.place === "苍岩别院" && s.rank !== "白身",
+    bind: () => {
+      const out = [];
+      for (const m of ["zhou", "quan"]) for (const c of CHORES) out.push({ master: m, chore: c.id });
+      return out;
+    },
+    render: (s, b) => {
+      const m = CAST[b.master];
+      const c = CHORES.find(x => x.id === b.chore);
+      return [`${m.name}叫住你，${m.tags.includes("教习") ? "淡淡道" : "吩咐道"}：「今日你${c.text}。做好了，别院少不了你一口饭。」`,
+              `（${c.note}）`];
+    },
+    choices: (s, b) => [
+      { id: "do", label: "应下差遣", note: "体力 -12，+2 文赏钱",
+        effects: { stamina: -12, money: 2,
+          log: b.master === "quan"
+            ? "一天活计做完，腰酸背痛。老拳师看着你扫完最后一帚，只说了四个字：「脚下有根。」"
+            : "一天活计做完，周管事点了点头：「明日还是这个时辰。」" } },
+      { id: "defer", label: "告个方便", note: "推脱，观感有损",
+        effects: { log: "你推说家中有事。周管事眼里掠过一丝不豫，没说什么。" } },
+    ],
+  },
+
+  {
+    id: "t.drug.debt", title: "药铺 · 催账", mutex: null,
+    weight: 15, cooldownHours: 6, priority: 4,
+    // 主线压制（when 通道）：药钱断供 ≥2 日才被「点亮」，高权重抢触发
+    when: (s) => s.place === "药铺" && s.debtDays >= 2,
+    bind: () => [{ clerk: "yaohuo" }],
+    render: (s) => [
+      `药铺伙计正拿戥子称药，一眼瞧见你，把戥子一撂。`,
+      `「来了？正好。」他从柜下抽出一张皱巴巴的账条，「上上旬的药钱，欠了两旬了。掌柜的发了话——再赊，就得用别的东西抵。」`,
+      s.debtDays >= 4 ? `他的目光在你身上那点家当上转了一圈。` : `「家里有病人的，咱也体谅。可这乱世，谁的账不是账？」`,
+    ],
+    choices: (s) => [
+      { id: "pay", label: "结清欠账", note: "-60 文，断供清零", cost: { money: 60 },
+        effects: { money: -60, clearDebt: true, log: "你把铜钱一枚枚码上柜台。伙计脸色缓和了些：「掌柜的交代了，药照抓，按旬来。」" } },
+      { id: "owe", label: "再赊一旬", note: "断供 +1 日，病情恶化风险",
+        effects: { addDebt: 1, log: "伙计把账条折起来：「行。可丑话在前——病情可不等人。」" } },
+      { id: "pawnitem", label: "抵当随身物品", note: "抵掉一件家当清账",
+        effects: { pawnAny: true, clearDebt: true, log: "你从怀里摸出件东西搁上柜台。伙计验了成色，把账条撕了。" } },
+    ],
+  },
+];
+
+// 手写主线单元（极简示意，走 priority 2 剧情强制层）
+const MAINLINE_UNIT = {
+  id: "m.escort.tier2", title: "【手写主线】护镖差事 · 道中", priority: 2, weight: 10,
+  when: (s) => s.escortActive,
+  render: (s) => [
+    "官道上尘土漫天。你随着镖队行在车队侧翼，把总不时回头查看后路。",
+    s.weather === "大风" ? "风声里，隐隐像有马蹄。" : "四野无声，只有车轮吱呀。",
+  ],
+  choices: () => [
+    { id: "alert", label: "警醒随行", note: "警觉检定",
+      check: { label: "警觉", prob: 0.65 },
+      success: { log: "风声里那点异响始终没成气候。把总看了你一眼，微微点头。" },
+      fail: { effects: { stamina: -10 }, log: "一夜没敢合眼，眼下乌青。车队倒也无事。" } },
+    { id: "doze", label: "靠着货箱打盹", default: true,
+      effects: { log: "梦里全是母亲的咳嗽声。" } },
+  ],
+};
+
+// ---- 状态 ----
+function initialState(seed) {
+  return {
+    seed, hour: 0, // 游戏内时辰数
+    place: "南门贫巷", weather: "阴",
+    rank: "白身", debtDays: 0, escortActive: false,
+    money: 43, stamina: 100, // 文 / 体力（涌现事件的选项结算用）
+    pawned: [],
+    cooldowns: {},       // key: templateId（模板级冷却）
+    bindingSeen: {},     // key: templateId + binding 签名 -> 上次出现的时辰（近重复规避）
+    pending: null,       // 活跃事件（对应正式引擎 stories.active 的模态语义）
+    lastLog: [],
+    rngCursor: 0,
+  };
+}
+
+// ---- 组合与入口评估（同管道：priority 分层 -> 层内加权随机 -> mutex）----
+function eligibleCandidates(s) {
+  const out = [];
+  // 手写主线层（priority 2）
+  if (MAINLINE_UNIT.when(s)) out.push({ kind: "mainline", unit: MAINLINE_UNIT, priority: 2, weight: MAINLINE_UNIT.weight, key: MAINLINE_UNIT.id });
+  // 涌现层（priority 4）：模板 when 过滤 -> 绑定展开 -> 冷却 -> 近重复降权
+  for (const t of TEMPLATES) {
+    if (t.when(s) === false) continue;
+    const cd = s.cooldowns[t.id];
+    if (cd !== undefined && s.hour < cd) continue;
+    const bindings = t.bind(s);
+    if (bindings.length === 0) continue;
+    for (const b of bindings) {
+      const sig = t.id + "|" + Object.values(b).join(",");
+      const last = s.bindingSeen[sig];
+      const w = last !== undefined && s.hour - last < 48 ? Math.max(1, Math.round(t.weight * 0.25)) : t.weight;
+      out.push({ kind: "emergent", unit: t, binding: b, priority: t.priority, weight: w, key: sig, suppressedWeight: w !== t.weight });
+    }
+  }
+  return out;
+}
+
+function pickEntry(s, rand) {
+  const candidates = eligibleCandidates(s);
+  if (candidates.length === 0) return { picked: null, candidates: 0, suppressed: false, rand };
+  // priority 分层：高层有候选则低层不参评（主线压制通道 A）
+  const tiers = [...new Set(candidates.map(c => c.priority))].sort((a, b) => a - b);
+  const tier = tiers[0];
+  const tierName = tier === 2 ? "剧情强制" : tier === 4 ? "普通随机" : "层" + tier;
+  const pool = candidates.filter(c => c.priority === tier);
+  const suppressed = tier < 4 && candidates.some(c => c.priority === 4);
+  // 层内加权随机
+  const total = pool.reduce((a, c) => a + c.weight, 0);
+  let r = rand() * total, idx = 0;
+  for (; idx < pool.length - 1; idx++) { r -= pool[idx].weight; if (r < 0) break; }
+  // mutex：撞组重抽（至多几轮）
+  // mutex（忠实移植自现有引擎 stories.ts:pickEntry）：本次评估内同组至多取一。
+  // 原型发现：单次单选的评估里 usedMutex 恒为空，mutex 事实上不触发——
+  // 同模板多绑定的互斥由「一次只取一个实例」天然保证。mutex 组的真正用武之地
+  // 是「一次评估出多个事件」（链中途插入、主+副双槽）的未来语义，见场景④的说明。
+  const usedMutex = new Set();
+  let picked = pool[idx], guard = 6;
+  while (picked.unit.mutex && usedMutex.has(picked.unit.mutex) && guard-- > 0) {
+    pool = pool.filter((u) => u.mutex !== picked.mutex);
+    const t2 = pool.reduce((a, c) => a + c.weight, 0);
+    let r2 = rand() * t2; idx = 0;
+    for (; idx < pool.length - 1; idx++) { r2 -= pool[idx].weight; if (r2 < 0) break; }
+    picked = pool[idx] || picked;
+  }
+  return { picked, candidates: candidates.length, suppressed, tierName, rand };
+}
+
+// ---- 选项结算（对应正式引擎 resolveChoice 的沙盘简化版）----
+function applyEffects(s, eff, binding) {
+  if (!eff) return;
+  if (eff.money) s.money = Math.max(0, s.money + eff.money);
+  if (eff.stamina) s.stamina = Math.max(0, Math.min(100, s.stamina + eff.stamina));
+  if (eff.pawnItem && binding && binding.item && !s.pawned.includes(binding.item)) s.pawned.push(binding.item);
+  if (eff.pawnAny) { const left = ["褪色木簪", "拣的长枪头", "半新的棉袄", "两斤干粮"].filter(i => !s.pawned.includes(i)); if (left.length > 0) s.pawned.push(left[0]); }
+  if (eff.clearDebt) s.debtDays = 0;
+  if (eff.addDebt) s.debtDays += eff.addDebt;
+}
+
+function choiceAffordable(s, ch) {
+  if (ch.cost && ch.cost.money && s.money < ch.cost.money) return false;
+  return true;
+}
+
+/** 结算活跃事件的一个选项；返回 { label, lines } 或 { error } */
+function resolveChoice(s, rand, choiceId) {
+  const p = s.pending;
+  if (!p) return { error: "无活跃事件" };
+  const ch = p.choices.find(c => c.id === choiceId);
+  if (!ch) return { error: "选项不存在" };
+  if (!choiceAffordable(s, ch)) return { error: "银钱不足" };
+  const lines = [];
+  let eff = ch.effects || {};
+  if (ch.check) {
+    const roll = rand();
+    const ok = roll < ch.check.prob;
+    lines.push(`检定 ${ch.check.label}：掷得 ${Math.round(roll * 100)} / 100，需 ${Math.round(ch.check.prob * 100)} → ${ok ? "成功" : "失败"}`);
+    if (ok && ch.success) { eff = ch.success.effects || eff; if (ch.success.log) lines.push(ch.success.log); }
+    if (!ok && ch.fail) { eff = ch.fail.effects || eff; if (ch.fail.log) lines.push(ch.fail.log); }
+  } else if (eff.log) {
+    lines.push(eff.log);
+  }
+  applyEffects(s, eff, p.binding);
+  s.pending = null;
+  return { label: ch.label, lines };
+}
+
+/** 自动结算（连抽用）：优先 default 标记，其次第一个付得起的 */
+function autoResolve(s, rand) {
+  const p = s.pending;
+  if (!p) return null;
+  const ch = p.choices.find(c => c.default) || p.choices.find(c => choiceAffordable(s, c));
+  if (!ch) { s.pending = null; return { label: "（无路可走）", lines: [] }; }
+  return resolveChoice(s, rand, ch.id);
+}
+
+// ---- 推进一个时辰 ----
+function spendHour(s, rand, auto) {
+  s.hour += 1;
+  const res = pickEntry(s, rand);
+  if (!res.picked) {
+    s.lastLog = [];
+    return { s, outcome: { kind: "none", candidates: 0 } };
+  }
+  const p = res.picked;
+  // 记冷却与绑定签名
+  if (p.kind === "emergent") {
+    s.cooldowns[p.unit.id] = s.hour + p.unit.cooldownHours;
+    s.bindingSeen[p.key] = s.hour;
+  }
+  const binding = p.kind === "emergent" ? p.binding : {};
+  const text = p.unit.render(s, binding);
+  s.lastLog = text;
+  const outcome = {
+    kind: p.kind, tier: p.priority, tierName: res.tierName,
+    title: p.unit.title, text, binding: p.binding || null,
+    candidates: res.candidates, suppressed: res.suppressed,
+    suppressedWeight: !!p.suppressedWeight,
+    choices: p.unit.choices ? p.unit.choices(s, binding) : [],
+  };
+  // 有选项的事件进入模态（对应正式引擎 stories.active）；auto 模式立即自动结算
+  if (outcome.choices.length > 0) {
+    s.pending = { outcome, choices: outcome.choices, binding };
+    if (auto) {
+      const r = autoResolve(s, rand);
+      outcome.resolved = r;
+    }
+  }
+  return { s, outcome };
+}
+
+// 导出（供 UI 调用）
+const Emergence = { initialState, spendHour, resolveChoice, autoResolve, choiceAffordable, eligibleCandidates, pickEntry, TEMPLATES, CAST, PLACES, WEATHERS, MAINLINE_UNIT };
+
+/* ================================================================
+ * 以下为一次性 UI 壳（丢弃物）
+ * ================================================================ */
+const UI = (() => {
+  let S = initialState(20260915);
+  let rand = mulberry32(20260915);
+  const logEl = () => document.getElementById("log");
+
+  function hourLabel(h) {
+    const d = Math.floor(h / 24) + 1, hh = h % 24;
+    const shichen = ["子","丑","寅","卯","辰","巳","午","未","申","酉","戌","亥"];
+    return `第${d}日 ${shichen[Math.floor(hh / 2)]}时`;
+  }
+
+  function renderState() {
+    const tier2On = S.escortActive;
+    const cards = [
+      { t: "时辰 · 天气", rows: [
+        ["现在", hourLabel(S.hour)], ["天气", S.weather],
+        ["游戏内天数", `第 ${Math.floor(S.hour / 24) + 1} 日（一旬 = 十日）`],
+      ]},
+      { t: "身份 · 所在", rows: [
+        ["身份", S.rank], ["地点", S.place],
+        ["银钱", `${S.money} 文`], ["体力", `${S.stamina} / 100`],
+        ["随身", ITEMS.filter(i => !S.pawned.includes(i)).join("、") || "（空）"],
+      ]},
+      { t: "主线状态（手写侧）", rows: [
+        ["护镖差事", S.escortActive ? ["进行中（priority 2 压制中）", 1] : ["未接", 0]],
+        ["药钱断供", S.debtDays === 0 ? ["按时结清", 0] : [`已断 ${S.debtDays} 日`, S.debtDays]],
+        ["母亲病情", S.debtDays >= 4 ? ["恶化中", 1] : S.debtDays >= 2 ? ["不稳", 1] : ["尚稳", 0]],
+      ]},
+      { t: "涌现引擎", rows: [
+        ["候选实例数", String(eligibleCandidates(S).length)],
+        ["模板冷却中", Object.entries(S.cooldowns).filter(([, t]) => S.hour < t).map(([id]) => id).join("、") || "无"],
+        ["种子", String(S.seed)],
+      ]},
+    ];
+    document.getElementById("stateCards").innerHTML = cards.map(c => `
+      <div class="card"><div class="cardtitle">${c.t}</div>
+      ${c.rows.map(r => `<div class="kv"><span class="k">${r[0]}</span><span class="v ${Array.isArray(r[1]) ? (r[1][1] ? "on" : "off") : ""}">${Array.isArray(r[1]) ? r[1][0] : r[1]}</span></div>`).join("")}
+      </div>`).join("");
+
+    const placeBtns = PLACES.map(p => `<button ${p === S.place ? "disabled" : ""} onclick="UI.go('${p}')">${p}</button>`).join("");
+    const weatherBtns = WEATHERS.map(w => `<button ${w === S.weather ? "disabled" : ""} onclick="UI.setWeather('${w}')">${w}</button>`).join("");
+    document.getElementById("stateBtns").innerHTML = `
+      <span style="align-self:center;font-size:13px;color:var(--muted)">换地点：</span>${placeBtns}
+      <span style="align-self:center;font-size:13px;color:var(--muted)">| 换天气：</span>${weatherBtns}
+      <span style="align-self:center;font-size:13px;color:var(--muted)">| 主线开关：</span>
+      <button class="${S.escortActive ? "warn" : ""}" onclick="UI.toggleEscort()">${S.escortActive ? "结束护镖差事" : "接下护镖差事（主线 tier2）"}</button>
+      <button class="${S.debtDays > 0 ? "warn" : ""}" onclick="UI.addDebt()">药钱断供 +1 日</button>
+      <button onclick="UI.clearDebt()">结清药钱</button>
+      <button onclick="UI.pawnOne()">当掉一件随身物品</button>
+      <button onclick="UI.promote()">${S.rank === "白身" ? "晋升：别院学徒" : S.rank === "别院学徒" ? "晋升：记名弟子" : "身份已满"}</button>`;
+  }
+
+  function pushLog(o) {
+    const el = logEl();
+    const div = document.createElement("div");
+    if (o.kind === "none") {
+      div.className = "logentry sys";
+      div.innerHTML = `<div class="meta">${hourLabel(S.hour)}</div><div class="body">（无事发生——当前无合格候选实例）</div>`;
+    } else {
+      div.className = "logentry event";
+      const tag = o.kind === "mainline" ? `<span class="tag tier2">主线 · 剧情强制</span>` : `<span class="tag ${o.filler ? "filler" : ""}">涌现 · ${o.tierName}</span>`;
+      const bind = o.binding ? `<div class="binding">绑定：${Object.entries(o.binding).map(([k, v]) => `${k}=${v}`).join(" · ")}${o.suppressedWeight ? "（近重复降权后中选）" : ""}</div>` : "";
+      const supp = o.suppressed ? `<div class="binding" style="color:var(--danger)">⚠ 本轮日常层（tier4）有 ${o.candidates} 个候选，但被剧情强制层压制未参评</div>` : "";
+      const choiceHint = o.choices && o.choices.length
+        ? `<div class="binding">选项：${o.choices.map(c => c.label + (c.cost && c.cost.money ? `（要 ${c.cost.money} 文）` : "")).join(" / ")}</div>` : "";
+      const resHtml = o.resolved
+        ? `<div class="binding" style="color:var(--ink)">结算 · 选了「${o.resolved.label}」：${o.resolved.lines.join("；") || "（无话）"}</div>` : "";
+      div.innerHTML = `<div class="meta">${tag}${hourLabel(S.hour)} · ${o.title} · 候选池 ${o.candidates}</div>
+        <div class="body">${o.text.join("\n")}</div>${bind}${supp}${choiceHint}${resHtml}`;
+    }
+    el.prepend(div);
+  }
+
+  function doHour() {
+    if (S.pending) return;
+    const r = Emergence.spendHour(S, rand);
+    S = r.s;
+    pushLog(r.outcome);
+    renderState(); renderPending(); renderTabs();
+  }
+
+  function renderPending() {
+    const wrap = document.getElementById("pendingWrap");
+    const btn = document.getElementById("hourBtn");
+    if (btn) btn.disabled = !!S.pending;
+    if (!S.pending) { wrap.innerHTML = ""; return; }
+    const o = S.pending.outcome;
+    wrap.innerHTML = `
+      <div class="card" style="border-color:var(--accent);margin-top:12px">
+        <div class="cardtitle">活跃事件 —— 须先选一个选项，时辰才继续（对应正式引擎 stories.active 的模态语义）</div>
+        <div style="font-weight:bold;margin:2px 0 6px">${o.title}</div>
+        <div style="white-space:pre-wrap;margin-bottom:10px">${o.text.join("\n")}</div>
+        <div class="btns">${S.pending.choices.map(c => {
+          const ok = Emergence.choiceAffordable(S, c);
+          return `<button ${ok ? `onclick="UI.choose('${c.id}')"` : "disabled title='银钱不足'"}>${c.label}${c.note ? `（${c.note}）` : ""}${ok ? "" : " —— 银钱不足"}</button>`;
+        }).join("")}</div>
+      </div>`;
+  }
+
+  const SCENARIOS = [
+    {
+      name: "① 日常涌现的质感",
+      desc: "白身闲人在城里晃。感受：模板 × 素材的组合读起来成不成立？金庸腔断没断？街景氛围（低权重 padding）穿插着是否无聊？",
+      steps: [
+        { act: "去牙市", hint: "闲话模板的主场，消息池被断供状态过滤", fn: () => UI.go("牙市") },
+        { act: "度过一个时辰", hint: "大概率触发「牙市 · 闲话」，看绑定的消息变体", fn: () => UI.spendHour() },
+        { act: "度过一个时辰", hint: "再看一次——冷却 8 时辰内不会再出闲话，会轮到街面/氛围", fn: () => UI.spendHour() },
+        { act: "回南门贫巷", hint: "街面纠缠模板的主场（乱源+市井人物池）", fn: () => UI.go("南门贫巷") },
+        { act: "度过一个时辰", hint: "看纠缠事件的「人物 × 起因」组合", fn: () => UI.spendHour() },
+        { act: "连抽 10 时辰", hint: "看整体分布：氛围/纠缠/无事的比例与重复率", fn: () => UI.rollTen() },
+      ],
+    },
+    {
+      name: "② 主线压制（priority 通道）",
+      desc: "接下护镖差事（手写主线，priority 2 剧情强制层）。感受：主线期间日常层是否彻底安静？这个「安静」对不对、过不过分？",
+      steps: [
+        { act: "接下护镖差事", hint: "主线 tier2 单元进入候选池", fn: () => UI.toggleEscort() },
+        { act: "度过一个时辰", hint: "看压制提示：日常层候选被 tier2 压住", fn: () => UI.spendHour() },
+        { act: "度过一个时辰", hint: "主线期间每一轮都是手写单元", fn: () => UI.spendHour() },
+        { act: "结束护镖差事", hint: "主线收束", fn: () => UI.toggleEscort() },
+        { act: "度过一个时辰", hint: "日常层恢复参评", fn: () => UI.spendHour() },
+      ],
+    },
+    {
+      name: "③ 主线引用（when 通道）",
+      desc: "药钱断供是软压力死线。感受：断供后闲话的消息池切换、药铺催账被「点亮」并高权重抢触发——涌现内容读主线状态的手感对不对？",
+      steps: [
+        { act: "药钱断供 +1 日", hint: "debtDays = 1：闲话池混入断供线消息", fn: () => UI.addDebt() },
+        { act: "去牙市，度过一个时辰", hint: "看闲话是否切换到忧虑线", fn: () => { UI.go("牙市"); UI.spendHour(); } },
+        { act: "再断供 +1 日（≥2）", hint: "药铺催账模板被点亮（weight 15 抢触发）", fn: () => UI.addDebt() },
+        { act: "去药铺，度过一个时辰", hint: "催账事件出现，且正文随断供日数变化", fn: () => { UI.go("药铺"); UI.spendHour(); } },
+        { act: "断供到 4 日以上再听一次", hint: "正文加深（病情恶化氛围）", fn: () => { UI.addDebt(); UI.addDebt(); UI.go("牙市"); UI.spendHour(); } },
+        { act: "结清药钱", hint: "涌现层回落常态", fn: () => UI.clearDebt() },
+      ],
+    },
+    {
+      name: "④ 组合约束与 mutex 的边角",
+      desc: "组合失败的回退 + 一个原型发现：① 细雨天纠缠不触发（素材间互斥）、当铺物品当光后模板静默消失、白身进不了别院杂役——这些「不触发」是静默的，要不要让玩家看见？② mutex 在单次单选的评估里事实上不触发（同模板多绑定由「一次取一个」天然互斥；牙市闲话与招工共享 mutex 组「市井」只是给人读的声明）。它真正的用武之地是未来「一次评估出多个事件」（如链中途插入支线）——涌现规格里 mutex 该保留为保险，不承担日常频控。",
+      steps: [
+        { act: "换天气为细雨，去南门贫巷", hint: "纠缠模板 when 挂了天气条件", fn: () => { UI.setWeather("细雨"); UI.go("南门贫巷"); } },
+        { act: "度过一个时辰", hint: "只剩氛围层可触发（看候选池数字缩水）", fn: () => UI.spendHour() },
+        { act: "去牙市，连抽 10 时辰", hint: "看闲话与招工（同 mutex 组）是否轮流出现、从不双双连发", fn: () => { UI.go("牙市"); UI.rollTen(); } },
+        { act: "去当铺，当光随身物品", hint: "压价模板的物品槽位被逐件抽干", fn: () => { UI.go("当铺"); UI.pawnOne(); UI.pawnOne(); UI.pawnOne(); UI.pawnOne(); } },
+        { act: "度过一个时辰", hint: "物品槽空 → 压价模板绑定集为空 → 静默不参评（候选池缩到只剩氛围）", fn: () => UI.spendHour() },
+      ],
+    },
+  ];
+
+  let curTab = 0, stepIdx = 0, scenarioActive = true;
+  function renderTabs() {
+    document.getElementById("tabs").innerHTML = SCENARIOS.map((s, i) =>
+      `<div class="tab ${i === curTab ? "active" : ""}" onclick="UI.tab(${i})">${s.name}</div>`).join("");
+    const sc = SCENARIOS[curTab];
+    document.getElementById("tabPanel").innerHTML = `
+      <div class="desc">${sc.desc}</div>
+      ${sc.steps.map((st, i) => `
+        <div class="step ${scenarioActive && i === stepIdx ? "current" : ""} ${scenarioActive && i < stepIdx ? "done" : ""}">
+          <div class="n">第 ${i + 1} 步</div>
+          <div>
+            <div>${st.hint ? `<span class="hint">${st.hint}</span>` : ""}</div>
+            <div class="act"><button onclick="UI.stepFn(${i})">${st.act}</button></div>
+          </div>
+        </div>`).join("")}`;
+  }
+
+  return {
+    spendHour: doHour,
+    rollTen() {
+      for (let i = 0; i < 10; i++) { const r = Emergence.spendHour(S, rand, true); S = r.s; pushLog(r.outcome); }
+      const el = logEl();
+      const div = document.createElement("div");
+      div.className = "logentry sys";
+      div.innerHTML = `<div class="meta">连抽汇总（上方 10 条为连续时辰）</div><div class="body">看：同一模板是否连发（冷却挡住没有）、同一绑定是否短时间重复（近重复降权有效没有）、「无事发生/纯氛围」占比多少、这个占比你觉得能不能接受。</div>`;
+      el.prepend(div);
+      renderState();
+    },
+    go(p) { S.place = p; renderState(); renderTabs(); },
+    setWeather(w) { S.weather = w; renderState(); renderTabs(); },
+    toggleEscort() { S.escortActive = !S.escortActive; renderState(); renderTabs(); },
+    addDebt() { S.debtDays += 1; renderState(); renderTabs(); },
+    clearDebt() { S.debtDays = 0; renderState(); renderTabs(); },
+    pawnOne() { const left = ITEMS.filter(i => !S.pawned.includes(i)); if (left.length > 0) S.pawned.push(left[0]); renderState(); renderTabs(); },
+    promote() { S.rank = S.rank === "白身" ? "别院学徒" : S.rank === "别院学徒" ? "记名弟子" : S.rank; renderState(); renderTabs(); },
+    reset() { S = initialState(20260915); rand = mulberry32(20260915); document.getElementById("log").innerHTML = ""; renderState(); renderTabs(); renderPending(); },
+    choose(id) {
+      if (!S.pending) return;
+      const r = Emergence.resolveChoice(S, rand, id);
+      if (r.error) return;
+      const el = logEl();
+      const div = document.createElement("div");
+      div.className = "logentry event";
+      div.innerHTML = `<div class="meta"><span class="tag">结算</span>${hourLabel(S.hour)} · 选了「${r.label}」</div><div class="body">${r.lines.join("\n") || "（无话）"}</div>`;
+      el.prepend(div);
+      renderState(); renderPending(); renderTabs();
+    },
+    tab(i) { curTab = i; stepIdx = 0; scenarioActive = true; renderTabs(); },
+    stepFn(i) {
+      const sc = SCENARIOS[curTab];
+      if (!scenarioActive) { scenarioActive = true; }
+      if (i !== stepIdx) { // 允许点当前步
+        stepIdx = i;
+      } else {
+        sc.steps[i].fn();
+        stepIdx = Math.min(i + 1, sc.steps.length);
+      }
+      renderTabs();
+    },
+    step() { renderTabs(); },
+    init() { renderState(); renderTabs(); renderPending(); },
+  };
+})();
+UI.init();
+</script>
+</body>
+</html>
