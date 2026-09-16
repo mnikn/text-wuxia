@@ -13,6 +13,7 @@ import {
   createSliceState,
   enterPassage,
   followNext,
+  formatMoney,
   passageById,
   SLICE_TUNE,
   type SliceState,
@@ -78,7 +79,7 @@ function renderSide(): void {
     `<span class="k">体力</span>` +
     `<span class="v">${state.stamina.current} / ${state.stamina.max}</span>` +
     `<i class="bar tili"><b style="width:${pct}%"></b></i>`;
-  $("side-money").textContent = `${state.money} 文`;
+  $("side-money").textContent = formatMoney(state.money);
 }
 
 function renderStory(): void {

@@ -188,25 +188,49 @@ describe("开场内容（本批真实内容）", () => {
   it("过校验门，且结构就是定下的那条最短路径", () => {
     const p = parseTwee(OPENING);
     expect(errs(p.diagnostics)).toEqual([]);
-    expect(Object.keys(p.index)).toEqual(["开场.家门外", "开场.官道", "开场.南门贫巷", "开场.药铺", "开场.停留"]);
-    const [home, road, alley, pharmacy, stop] = p.passages;
-    expect(home!.choices).toHaveLength(0);
-    expect(home!.next).toBe("开场.官道");
-    expect(road!.choices.map((c) => c.id)).toEqual(["help", "go"]);
-    expect(road!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 30, pos: { line: 17 } });
+    expect(Object.keys(p.index)).toEqual([
+      "开场.家门外",
+      "开场.官道",
+      "开场.南门贫巷",
+      "开场.当铺",
+      "开场.药铺",
+      "开场.市集",
+      "开场.出城",
+      "开场.停留",
+    ]);
+    const [home, road, alley, pawnshop, pharmacy, market, leaving, stop] = p.passages;
+    expect(home!.choices.map((c) => c.id)).toEqual(["take"]);
+    expect(home!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 5, pos: { line: 16 } });
+    expect(home!.choices[0]!.next).toBe("开场.官道");
+    expect(road!.choices.map((c) => c.id)).toEqual(["on"]);
+    expect(road!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 120, pos: { line: 37 } });
+    // 赶路只花时间：体力的代价已经从开场拿掉
+    expect(road!.choices[0]!.cost?.stamina).toBeUndefined();
     expect(road!.choices[0]!.next).toBe("开场.南门贫巷");
-    expect(road!.choices[1]!.cost?.time).toEqual({ kind: "literal", value: 10, pos: { line: 26 } });
-    expect(alley!.choices.map((c) => c.id)).toEqual(["pawn", "skip"]);
+    expect(alley!.choices.map((c) => c.id)).toEqual(["pawn"]);
+    expect(alley!.choices[0]!.next).toBe("开场.当铺");
+    expect(pawnshop!.choices.map((c) => c.id)).toEqual(["pawn"]);
+    expect(pawnshop!.choices[0]!.cost).toEqual({
+      time: { kind: "literal", value: 15, pos: { line: 67 } },
+      pos: { line: 67 },
+    });
+    expect(pawnshop!.choices[0]!.next).toBe("开场.药铺");
     expect(pharmacy!.choices.map((c) => c.id)).toEqual(["buy"]);
-    expect(pharmacy!.next).toBe("开场.停留");
+    expect(pharmacy!.choices[0]!.cost?.money).toEqual({ kind: "literal", value: 300, pos: { line: 81 } });
+    expect(market!.choices.map((c) => c.id)).toEqual(["grain"]);
+    expect(market!.choices[0]!.cost?.money).toEqual({ kind: "literal", value: 200, pos: { line: 98 } });
+    expect(leaving!.choices.map((c) => c.id)).toEqual(["back"]);
+    expect(leaving!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 120, pos: { line: 115 } });
     expect(stop!.choices).toHaveLength(0);
-    expect(summarize(p)).toContain("5 个单元、5 个选项");
+    expect(stop!.next).toBeUndefined();
+    expect(summarize(p)).toContain("8 个单元、7 个选项");
   });
 
   it("发射产物确定", () => {
     const p = parseTwee(OPENING);
     expect(emitModule(p)).toBe(emitModule(p));
     const plain = toPlain(p);
-    expect(plain.passages[1]!.choices[0]!.blocks.some((b) => b.k === "effect")).toBe(true);
+    // 第 4 个单元是当铺，效果条目在它的选项里
+    expect(plain.passages[3]!.choices[0]!.blocks.some((b) => b.k === "effect")).toBe(true);
   });
 });

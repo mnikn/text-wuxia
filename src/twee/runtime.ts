@@ -30,7 +30,7 @@ export const SLICE_TUNE = {
   staminaMax: 100,
   lifeMax: 100,
   neiliMax: 40,
-  /** 开场身上没钱：家里只剩父亲那把刀能换钱（#20 开场改版） */
+  /** 开场身上没钱：家里只剩父亲那把剑能换钱（#20 开场改版） */
   money: 0,
   day: 1,
   minute: 8 * 60,
@@ -142,6 +142,20 @@ function truthy(v: number | string | boolean | null): boolean {
 
 /* ---------------- 量与代价 ---------------- */
 
+/** 一两 = 一千文。银钱字段只以「文」为权威，换算只发生在显示层。 */
+export const WEN_PER_LIANG = 1000;
+
+/** 银钱的显示口径：`1000 → 一两`、`1500 → 一两 500 文`、`300 → 300 文`。 */
+export function formatMoney(wen: number): string {
+  const sign = wen < 0 ? "-" : "";
+  const abs = Math.abs(wen);
+  const liang = Math.floor(abs / WEN_PER_LIANG);
+  const rest = abs % WEN_PER_LIANG;
+  if (liang === 0) return `${sign}${rest} 文`;
+  if (rest === 0) return `${sign}${liang} 两`;
+  return `${sign}${liang} 两 ${rest} 文`;
+}
+
 function amountValue(amount: IrAmount, tune: Record<string, number> = {}): number {
   if (amount.kind === "literal") return Number(amount.value);
   const v = tune[String(amount.value)];
@@ -189,7 +203,7 @@ export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string,
   switch (eff.target) {
     case "money":
       state.money = Math.max(0, state.money + delta);
-      return `银钱 ${delta >= 0 ? "+" : ""}${delta} 文`;
+      return `银钱 ${delta >= 0 ? "+" : ""}${formatMoney(delta)}`;
     case "stamina":
       state.stamina.current = clamp(state.stamina.current + delta, 0, state.stamina.max);
       return `体力 ${delta >= 0 ? "+" : ""}${delta}`;
@@ -234,7 +248,7 @@ export function costSummary(cost: IrCost | undefined, state: SliceState, tune?: 
   if (!cost) return undefined;
   const parts: string[] = [];
   if (cost.time) parts.push(`耗时 ${amountValue(cost.time, tune)} 分钟`);
-  if (cost.money) parts.push(`花 ${amountValue(cost.money, tune)} 文`);
+  if (cost.money) parts.push(`花 ${formatMoney(amountValue(cost.money, tune))}`);
   if (cost.stamina) parts.push(`耗体力 ${amountValue(cost.stamina, tune)}`);
   if (cost.neili) parts.push(`耗内力 ${amountValue(cost.neili, tune)}`);
   const blocked = checkCost(cost, state, tune);
