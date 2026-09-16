@@ -604,7 +604,7 @@ const UI = (() => {
       { t: "主线状态（手写侧）", rows: [
         ["护镖差事", S.escortActive ? ["进行中（priority 2 压制中）", 1] : ["未接", 0]],
         ["药钱断供", S.debtDays === 0 ? ["按时结清", 0] : [`已断 ${S.debtDays} 日`, S.debtDays]],
-        ["母亲病情", S.debtDays >= 4 ? ["恶化中", 1] : S.debtDays >= 2 ? ["不稳", 1] : ["尚稳", 0]],
+        ["母亲病情", ["不设状态字段，只由正文写出", 0]],
       ]},
       { t: "涌现引擎", rows: [
         ["候选实例数", String(eligibleCandidates(S).length)],

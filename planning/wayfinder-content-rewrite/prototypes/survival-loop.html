@@ -3,32 +3,38 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>日常身体状态结构验证器 · 票据 #24</title>
+<title>日常身体状态结构验证器 · 票据 #24（规则冻结版）</title>
+<!--
+  用途：票据 #24 的规则与状态转换验证器，2026-09-16 冻结。
+  冻结含义：这里只定义规则。本文件不是 UI 参考、不是界面基线，正式玩法界面另行设计，不照抄下面的面板、按钮与文案。
+  可搬走的部分：脚本里 ==CORE-START== 与 ==CORE-END== 之间的纯逻辑（初始状态、三资源上下限、行动可用性判定、战败接回、不变量断言），可整段移植进 src/engine/。
+  用完即弃的部分：== 以下的页面外壳（渲染、按钮、「引导走查」面板）只是让人手动推状态的脚手架。
+  数值：PLACEHOLDER 里的数全是结构占位，不是平衡定稿。
+-->
 <style>
   :root{--ink:#29241f;--muted:#71675d;--paper:#f6f1e8;--card:#fffdf8;--line:#ded4c5;--accent:#825329;--soft:#efe2d3;--ok:#3f704e;--bad:#a6432d}
   *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.65 "Noto Serif SC","Songti SC",serif}
   header{padding:26px 24px 18px;background:var(--card);border-bottom:1px solid var(--line)}h1{margin:0 0 8px;font-size:22px}h2{margin:0 0 10px;font-size:15px;color:var(--muted)}p{margin:6px 0}.meta,.hint{font-size:13px;color:var(--muted)}
   main{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(320px,.75fr);gap:18px;padding:18px 24px 56px;align-items:start}.col{display:flex;flex-direction:column;gap:18px;min-width:0}section{padding:16px 18px;background:var(--card);border:1px solid var(--line);border-radius:8px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px 18px}.kv{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px dotted var(--line)}.kv span:first-child{color:var(--muted)}.kv strong{text-align:right;font-variant-numeric:tabular-nums}
-  .tags,.tabs,.actions{display:flex;flex-wrap:wrap;gap:8px}.tag{padding:2px 9px;border-radius:999px;background:var(--soft);color:var(--accent);font-size:12px}.tag.bad{background:#f5dfd8;color:var(--bad)}
+  .tabs,.actions{display:flex;flex-wrap:wrap;gap:8px}
   button{font:inherit;font-size:13px;padding:7px 11px;border:1px solid var(--line);border-radius:6px;background:white;color:var(--ink);cursor:pointer;text-align:left}button:hover:not(:disabled){border-color:var(--accent);background:var(--soft)}button:disabled{opacity:.45;cursor:not-allowed}button.on{background:var(--accent);color:white;border-color:var(--accent)}button small{display:block;color:var(--muted);font-size:11px}.group{margin:10px 0 4px;color:var(--muted);font-size:12px;width:100%}
   table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;vertical-align:top;padding:6px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);white-space:nowrap}.scenario{margin-top:10px}.steps{display:flex;flex-direction:column;gap:6px;margin-top:8px}.steps button.done{border-style:dashed;color:var(--muted)}
-  .check{padding:5px 0;border-bottom:1px dotted var(--line);font-size:13px}.check.ok{color:var(--ok)}.check.bad{color:var(--bad)}ol{list-style:none;margin:0;padding:0;max-height:310px;overflow:auto;font-size:13px}li{padding:5px 0;border-bottom:1px dotted var(--line)}time{color:var(--muted);margin-right:8px}code{font:12px ui-monospace,Consolas,monospace;background:#f0e9df;padding:1px 5px;border-radius:4px}
+  .check{padding:5px 0;border-bottom:1px dotted var(--line);font-size:13px}.check.ok{color:var(--ok)}.check.bad{color:var(--bad)}ol{list-style:none;margin:0;padding:0;max-height:310px;overflow:auto;font-size:13px}li{padding:5px 0;border-bottom:1px dotted var(--line)}time{color:var(--muted);margin-right:8px}
   @media(max-width:860px){main{grid-template-columns:1fr;padding:14px}.col{gap:14px}header{padding:20px 14px}}
 </style>
 </head>
 <body>
 <header>
   <h1>日常身体状态结构验证器</h1>
-  <p>问题：已定的状态结构能否覆盖普通生活、重伤恢复、临时状态、内功成长、母亲线和战败接回，同时保持“日常只维护体力”且不形成死档？</p>
-  <p class="meta">对应 <a href="https://github.com/mnikn/text-wuxia/issues/24">重设计生存状态与恢复循环</a> · 单文件 · 只存内存 · <b>所有动作名和数值均为结构占位，不是平衡定稿</b></p>
+  <p>问题：只留体力 / 三层生命 / 双层内力这三条资源，能否覆盖普通生活、重伤恢复、内功成长、母亲线和战败接回，同时保持“日常只维护体力”且不形成死档？</p>
+  <p class="meta">对应 <a href="https://github.com/mnikn/text-wuxia/issues/24">重设计生存状态与恢复循环</a> · 规则冻结版（2026-09-16） · 单文件 · 只存内存 · <b>所有动作名和数值均为结构占位，不是平衡定稿</b> · 身体状态标签不在本版范围 · <b>只定规则，不是界面参考</b></p>
 </header>
 <main>
   <div class="col">
-    <section><h2>① 当前完整状态</h2><div id="state" class="grid"></div><div id="tags" class="tags"></div><p id="combined" class="hint"></p></section>
-    <section><h2>② 自由操作</h2><div id="actions" class="actions"></div><p class="hint">“结构注入”用来制造伤病、战败和账期，不代表正式玩家按钮。恢复类操作始终可用；消耗型操作在体力不足时禁用并示因。</p></section>
-    <section><h2>③ 中央身体状态目录</h2><div id="catalog"></div></section>
-    <section><h2>④ 引导走查</h2><div id="tabs" class="tabs"></div><div id="scenario" class="scenario"></div></section>
+    <section><h2>① 当前完整状态</h2><div id="state" class="grid"></div><p class="hint">家里的情形（不占状态栏，只由正文写出）：<span id="motherline"></span></p></section>
+    <section><h2>② 自由操作</h2><div id="actions" class="actions"></div><p class="hint">“结构注入”用来制造战败和账期，不代表正式玩家按钮。恢复类操作始终可用；消耗型操作在体力不足时禁用并示因。</p></section>
+    <section><h2>③ 引导走查</h2><div id="tabs" class="tabs"></div><div id="scenario" class="scenario"></div></section>
   </div>
   <div class="col">
     <section><h2>结构不变量</h2><div id="checks"></div></section>
@@ -36,9 +42,9 @@
       <tr><th>体力</th><td>生活与战斗共用；唯一常驻的日常身体消耗数值；不为负。</td></tr>
       <tr><th>生命</th><td>当前生命 / 伤势上限 / 最大生命。普通恢复不能越过伤势上限。</td></tr>
       <tr><th>内力</th><td>当前内力 / 最大内力；内功境界限制上限，并弱反哺最大生命。</td></tr>
-      <tr><th>状态标签</th><td>必须登记；无通用等级或数值条；同类效果取最强，不累乘。</td></tr>
-      <tr><th>母亲病情</th><td>故事阶段、账期和欠款；不复用玩家身体资源。</td></tr>
-      <tr><th>失败延续</th><td>生命归零转入故事接回；只写回现有资源和已登记标签。</td></tr>
+      <tr><th>身体状态标签</th><td>本版不定义（受寒、生病、中毒这类临时状态留待后续拓展）。</td></tr>
+      <tr><th>母亲病情</th><td>只存账期与欠款；病情轻重不设状态字段，写进正文文字。</td></tr>
+      <tr><th>失败延续</th><td>生命归零转入故事接回；只写回现有资源。</td></tr>
     </tbody></table></section>
     <section><h2>行止记录</h2><ol id="log"></ol></section>
   </div>
@@ -46,44 +52,38 @@
 <script>
 /* ==CORE-START== */
 /* 纯逻辑模块：不碰 DOM。PLACEHOLDER 里的数只为让状态转换可点击。 */
-const PLACEHOLDER = {laborStamina:18,hardStamina:35,mealStamina:22,restStamina:28,restLife:16,careInjuryCap:24,breatheNeili:16,meditateStamina:14,meditateProgress:55,neiliGrowthStep:4,neiliPerLife:4,defeatWound:28,bill:100};
-const BODY_TAG_CATALOG = Object.freeze({
-  cold:{name:"受寒",effects:{staminaRecoveryMultiplier:.75},clears:"保暖或剧情解除（占位）"},
-  illness:{name:"染病",effects:{staminaRecoveryMultiplier:.5,blockHighIntensity:true},clears:"求医或剧情解除（占位）"},
-  poisoned:{name:"中毒",effects:{blockInnerRecovery:true},clears:"解毒或剧情解除（占位）"},
-  internalInjury:{name:"内伤",effects:{blockHighIntensity:true},clears:"疗伤或剧情解除（占位）"}
-});
-function initialState(){const s={clock:{day:1,minute:480},money:40,growth:{root:5,innerSkill:5},resources:{stamina:{current:72,max:100},life:{current:100,injuryCap:100,max:100,baseMax:90},neili:{current:24,max:40,progress:0}},bodyTags:[],mother:{stage:"久病",nextBillDay:10,debt:0},lastOutcome:"无",log:[]};return normalize(s)}
+const PLACEHOLDER = {laborStamina:18,hardStamina:35,mealStamina:22,restStamina:28,restLife:16,careInjuryCap:32,breatheNeili:16,meditateStamina:14,meditateProgress:55,neiliGrowthStep:4,neiliPerLife:4,defeatWound:28,bill:100};
+function initialState(){const s={clock:{day:1,minute:480},money:40,growth:{root:5,innerSkill:5},resources:{stamina:{current:72,max:100},life:{current:100,injuryCap:100,max:100,baseMax:90},neili:{current:24,max:40,progress:0}},mother:{nextBillDay:10,debt:0},lastOutcome:"无",log:[]};return normalize(s)}
 function copy(s){return JSON.parse(JSON.stringify(s))}function clamp(v,min,max){return Math.max(min,Math.min(max,v))}function innerCap(s){return s.growth.innerSkill*10}function derivedLifeMax(s){return s.resources.life.baseMax+Math.floor(s.resources.neili.max/PLACEHOLDER.neiliPerLife)}
-function normalize(s){const r=s.resources;r.neili.max=clamp(r.neili.max,0,innerCap(s));r.life.max=derivedLifeMax(s);r.life.injuryCap=clamp(r.life.injuryCap,1,r.life.max);r.life.current=clamp(r.life.current,0,r.life.injuryCap);r.stamina.current=clamp(r.stamina.current,0,r.stamina.max);r.neili.current=clamp(r.neili.current,0,r.neili.max);s.bodyTags=Array.from(new Set(s.bodyTags)).filter(id=>Boolean(BODY_TAG_CATALOG[id]));return s}
-function combinedTagEffects(s){return s.bodyTags.reduce((x,id)=>{const e=BODY_TAG_CATALOG[id].effects;if(typeof e.staminaRecoveryMultiplier==="number")x.staminaRecoveryMultiplier=Math.min(x.staminaRecoveryMultiplier,e.staminaRecoveryMultiplier);x.blockHighIntensity=x.blockHighIntensity||Boolean(e.blockHighIntensity);x.blockInnerRecovery=x.blockInnerRecovery||Boolean(e.blockInnerRecovery);x.sources.push(BODY_TAG_CATALOG[id].name);return x},{staminaRecoveryMultiplier:1,blockHighIntensity:false,blockInnerRecovery:false,sources:[]})}
-function addTag(s,id){if(!BODY_TAG_CATALOG[id])throw new Error("未登记的身体状态标签："+id);if(!s.bodyTags.includes(id))s.bodyTags.push(id)}function removeTag(s,id){s.bodyTags=s.bodyTags.filter(x=>x!==id)}function log(s,text){s.log.unshift({day:s.clock.day,minute:s.clock.minute,text})}
-function advance(s,min){s.clock.minute+=min;while(s.clock.minute>=1440){s.clock.minute-=1440;s.clock.day+=1}}function recoverStamina(s,base){const n=Math.max(1,Math.round(base*combinedTagEffects(s).staminaRecoveryMultiplier));s.resources.stamina.current+=n;return n}
+function normalize(s){const r=s.resources;r.neili.max=clamp(r.neili.max,0,innerCap(s));r.life.max=derivedLifeMax(s);r.life.injuryCap=clamp(r.life.injuryCap,1,r.life.max);r.life.current=clamp(r.life.current,0,r.life.injuryCap);r.stamina.current=clamp(r.stamina.current,0,r.stamina.max);r.neili.current=clamp(r.neili.current,0,r.neili.max);return s}
+function log(s,text){s.log.unshift({day:s.clock.day,minute:s.clock.minute,text})}
+function advance(s,min){s.clock.minute+=min;while(s.clock.minute>=1440){s.clock.minute-=1440;s.clock.day+=1}}function recoverStamina(s,base){s.resources.stamina.current+=base;return base}
 function repairInjuryCap(s,n){s.resources.life.injuryCap+=n;s.resources.life.current=Math.min(s.resources.life.current+Math.ceil(n/2),s.resources.life.injuryCap)}
-function continueAfterDefeat(s){const r=s.resources;r.life.injuryCap-=PLACEHOLDER.defeatWound;r.life.current=Math.max(1,Math.floor(r.life.injuryCap*.25));r.stamina.current=Math.min(r.stamina.current,12);r.neili.current=0;addTag(s,"internalInjury");s.lastOutcome="失去行动能力 → 被救回生活循环";advance(s,480);log(s,"战败接回：只写回生命三层、体力、内力与已登记的“内伤”标签；没有新增伤势值。")}
+function continueAfterDefeat(s){const r=s.resources;r.life.injuryCap-=PLACEHOLDER.defeatWound;r.life.current=Math.max(1,Math.floor(r.life.injuryCap*.25));r.stamina.current=Math.min(r.stamina.current,12);r.neili.current=0;s.lastOutcome="失去行动能力 → 被救回生活循环";advance(s,480);log(s,"战败接回：只写回生命三层、体力与内力；不新增伤势值，也不新增状态标签。")}
 const ACTIONS=[
   {id:"labor",group:"普通生活",label:"保底谋生",staminaCost:PLACEHOLDER.laborStamina},{id:"hardTravel",group:"普通生活",label:"高强度赶路",staminaCost:PLACEHOLDER.hardStamina,highIntensity:true},
   {id:"meal",group:"恢复",label:"吃饭",recovery:true},{id:"rest",group:"恢复",label:"休息",recovery:true},{id:"sleep",group:"恢复",label:"睡眠",recovery:true},{id:"care",group:"恢复",label:"求医疗伤",recovery:true},{id:"breathe",group:"恢复",label:"调息",recovery:true},
-  {id:"meditate",group:"内功成长",label:"打坐修炼",staminaCost:PLACEHOLDER.meditateStamina},{id:"cold",group:"结构注入",label:"遭遇受寒"},{id:"illness",group:"结构注入",label:"染病"},{id:"poisoned",group:"结构注入",label:"遭遇中毒"},{id:"defeat",group:"结构注入",label:"模拟战败"},{id:"motherDue",group:"结构注入",label:"触发母亲药费账期"}
+  {id:"meditate",group:"内功成长",label:"打坐修炼",staminaCost:PLACEHOLDER.meditateStamina},
+  {id:"defeat",group:"结构注入",label:"模拟战败"},{id:"motherDue",group:"结构注入",label:"触发母亲药费账期"}
 ];
-function actionById(id){return ACTIONS.find(a=>a.id===id)}function unavailableReason(s,a){if(!a)return"未知操作";if(a.recovery)return null;if(a.staminaCost>s.resources.stamina.current)return"体力不足";if(a.highIntensity){if(s.resources.life.injuryCap<s.resources.life.max)return"伤势未愈";if(combinedTagEffects(s).blockHighIntensity)return"身体状态限制高强度行动"}return null}
+function actionById(id){return ACTIONS.find(a=>a.id===id)}function unavailableReason(s,a){if(!a)return"未知操作";if(a.recovery)return null;if(a.staminaCost>s.resources.stamina.current)return"体力不足";if(a.highIntensity&&s.resources.life.injuryCap<s.resources.life.max)return"伤势未愈";return null}
 function applyAction(input,id){const s=copy(input),a=actionById(id),blocked=unavailableReason(s,a);if(blocked){log(s,a.label+"未执行："+blocked);return normalize(s)}const r=s.resources;if(a.staminaCost)r.stamina.current-=a.staminaCost;
   switch(id){
     case"labor":s.money+=40;advance(s,60);log(s,"完成保底谋生：普通日常只消耗体力、时间并改变银钱。");break;
-    case"hardTravel":advance(s,120);log(s,"完成高强度赶路：是否开放只看体力、伤势和状态标签。");break;
+    case"hardTravel":advance(s,120);log(s,"完成高强度赶路：是否开放只看体力和伤势上限；本版没有身体状态标签这一层。");break;
     case"meal":{const n=recoverStamina(s,PLACEHOLDER.mealStamina);advance(s,30);log(s,"吃饭恢复体力 "+n+"（占位）；没有生成饥饿或饱食数值。");break}
     case"rest":{const n=recoverStamina(s,PLACEHOLDER.restStamina);r.life.current+=PLACEHOLDER.restLife;advance(s,60);log(s,"休息恢复体力 "+n+"、当前生命；当前生命不能越过伤势上限。");break}
     case"sleep":r.stamina.current=r.stamina.max;r.life.current=r.life.injuryCap;r.neili.current+=Math.ceil((r.neili.max-r.neili.current)/2);advance(s,480);log(s,"睡眠回满体力、把当前生命补到伤势上限，并只补部分内力；不修复伤势上限。");break;
-    case"care":repairInjuryCap(s,PLACEHOLDER.careInjuryCap);removeTag(s,"illness");removeTag(s,"poisoned");removeTag(s,"internalInjury");advance(s,120);log(s,"求医修复伤势上限并解除示例标签；具体费用、时长和可解除项待后续调整。");break;
-    case"breathe":if(combinedTagEffects(s).blockInnerRecovery)log(s,"调息未恢复内力：中毒标签阻断该类效果（示例）。");else{r.neili.current+=PLACEHOLDER.breatheNeili;log(s,"调息恢复当前内力（占位），不增长最大内力。")}advance(s,60);break;
+    case"care":repairInjuryCap(s,PLACEHOLDER.careInjuryCap);advance(s,120);log(s,"求医修复伤势上限（占位）；具体费用与时长待标定。");break;
+    case"breathe":r.neili.current+=PLACEHOLDER.breatheNeili;advance(s,60);log(s,"调息恢复当前内力（占位），不增长最大内力。");break;
     case"meditate":r.neili.progress+=PLACEHOLDER.meditateProgress;while(r.neili.progress>=100&&r.neili.max<innerCap(s)){r.neili.progress-=100;r.neili.max+=PLACEHOLDER.neiliGrowthStep}advance(s,120);log(s,"打坐消耗体力与时间，推进最大内力；内功境界限制上限，最大内力弱反哺最大生命。");break;
-    case"cold":addTag(s,"cold");log(s,"加入已登记标签“受寒”。");break;case"illness":addTag(s,"illness");log(s,"加入已登记标签“染病”。");break;case"poisoned":addTag(s,"poisoned");log(s,"加入已登记标签“中毒”。");break;
-    case"defeat":r.life.current=0;continueAfterDefeat(s);break;case"motherDue":s.mother.debt+=PLACEHOLDER.bill;s.mother.stage="缺药待续";s.mother.nextBillDay+=10;log(s,"母亲药费到期：只改变故事阶段、账期与欠款，玩家身体资源未被复用。");break
-  }return normalize(s)
+    case"defeat":r.life.current=0;continueAfterDefeat(s);break;case"motherDue":s.mother.debt+=PLACEHOLDER.bill;s.mother.nextBillDay+=10;log(s,"母亲药费到期：只改账期与欠款；病情轻重不设状态字段，只由正文文字表达。")}
+  return normalize(s)
 }
-function invariantReport(s){const e=combinedTagEffects(s),recoveryOpen=ACTIONS.filter(a=>a.recovery).every(a=>unavailableReason(s,a)===null);return[
+function invariantReport(s){const recoveryOpen=ACTIONS.filter(a=>a.recovery).every(a=>unavailableReason(s,a)===null);return[
   {ok:s.resources.stamina.current>=0,text:"体力不为负"},{ok:s.resources.life.current<=s.resources.life.injuryCap&&s.resources.life.injuryCap<=s.resources.life.max,text:"当前生命 ≤ 伤势上限 ≤ 最大生命"},{ok:s.resources.neili.max<=innerCap(s),text:"最大内力不超过内功境界上限"},
-  {ok:s.bodyTags.every(id=>Boolean(BODY_TAG_CATALOG[id])),text:"全部身体状态标签均已登记"},{ok:recoveryOpen,text:"吃饭、休息、睡眠、求医、调息始终可选"},{ok:!["wound","hunger","fatigue"].some(k=>Object.prototype.hasOwnProperty.call(s,k)),text:"无独立伤势值、饥饿值、疲劳值"},{ok:e.staminaRecoveryMultiplier>0,text:"同类标签效果取最强项，不做连乘"},{ok:Boolean(s.mother)&&!Object.prototype.hasOwnProperty.call(s.mother,"life"),text:"母亲病情未复用玩家生命资源"}
+  {ok:recoveryOpen,text:"吃饭、休息、睡眠、求医、调息始终可选"},{ok:!["wound","hunger","fatigue","conditions","bodyTags"].some(k=>Object.prototype.hasOwnProperty.call(s,k)),text:"无独立伤势值、饥饿值、疲劳值与状态标签表"},
+  {ok:Boolean(s.mother)&&!Object.prototype.hasOwnProperty.call(s.mother,"life")&&!Object.prototype.hasOwnProperty.call(s.mother,"stage"),text:"母亲线只存账期与欠款，不复用生命资源、不设病情字段"}
 ]}
 /* ==CORE-END== */
 
@@ -94,20 +94,21 @@ function invariantReport(s){const e=combinedTagEffects(s),recoveryOpen=ACTIONS.f
   const SCENARIOS=[
     {key:"普通一天",blurb:"普通生活只改时间、银钱和体力；不会碰生命、内力，也不会生成饥饿/疲劳。",steps:["labor","meal","sleep"]},
     {key:"伤势上限",blurb:"先制造战败，再比较休息与求医：休息只补当前生命，求医才修复伤势上限。",steps:["defeat","rest","care"]},
-    {key:"标签合并",blurb:"受寒与染病都影响体力恢复，只取更强项；中毒的不同类型限制同时生效。",steps:["cold","illness","poisoned","rest","breathe"]},
     {key:"体力见底",blurb:"从零体力开始：消耗型按钮禁用，恢复按钮仍开放；恢复后才能谋生。",setup:s=>{s.resources.stamina.current=0;return normalize(s)},steps:["rest","labor"]},
     {key:"内功成长",blurb:"调息只补当前内力；打坐推进最大内力并受内功境界限制，最大内力弱反哺最大生命。",setup:s=>{s.resources.neili.current=2;s.resources.neili.progress=60;return normalize(s)},steps:["breathe","meditate"]},
-    {key:"母亲账期",blurb:"药费到期只改变母亲线的阶段、账期和欠款，不新增或修改玩家身体属性。",steps:["motherDue"]},{key:"失败延续",blurb:"当前生命归零不是死亡：立即进入故事接回，只写回现有资源与已登记标签。",steps:["defeat"]}
+    {key:"母亲账期",blurb:"药费到期只改账期与欠款；病情轻重不落状态字段，按欠款分支写进正文文字。",steps:["motherDue"]},
+    {key:"失败延续",blurb:"当前生命归零不是死亡：立即进入故事接回，只写回现有资源。",steps:["defeat"]}
   ];
-  function renderState(){const box=$("state"),r=state.resources;box.innerHTML="";addKv(box,"时间","第 "+state.clock.day+" 日 "+hhmm(state.clock.minute));addKv(box,"银钱",state.money+" 文");addKv(box,"体力",r.stamina.current+" / "+r.stamina.max);addKv(box,"生命三层",r.life.current+" / "+r.life.injuryCap+" / "+r.life.max);addKv(box,"内力双层",r.neili.current+" / "+r.neili.max);addKv(box,"内功境界上限",innerCap(state));addKv(box,"内力成长进度",r.neili.progress+" / 100（占位）");addKv(box,"失败接回",state.lastOutcome);addKv(box,"母亲病情",state.mother.stage);addKv(box,"下次药费 / 欠款","第 "+state.mother.nextBillDay+" 日 / "+state.mother.debt+" 文");
-    const tags=$("tags");tags.innerHTML="";if(!state.bodyTags.length){const t=document.createElement("span");t.className="tag";t.textContent="无身体状态标签";tags.appendChild(t)}state.bodyTags.forEach(id=>{const t=document.createElement("span");t.className="tag bad";t.textContent=BODY_TAG_CATALOG[id].name;tags.appendChild(t)});const e=combinedTagEffects(state);$("combined").textContent="合并结果：体力恢复倍率 "+e.staminaRecoveryMultiplier+"；高强度限制 "+(e.blockHighIntensity?"是":"否")+"；内力恢复限制 "+(e.blockInnerRecovery?"是":"否")+"。同类效果只取最强项。"}
+  function motherConditionLine(s){return s.mother.debt>=800?"母亲咳得直不起身，药渣熬得发淡。":s.mother.debt>=300?"母亲只忍着说不碍事，夜里却睡不安稳。":"母亲照旧捱着，见你回来先问吃没吃饭。"}
+  function renderState(){const box=$("state"),r=state.resources;box.innerHTML="";addKv(box,"时间","第 "+state.clock.day+" 日 "+hhmm(state.clock.minute));addKv(box,"银钱",state.money+" 文");addKv(box,"体力",r.stamina.current+" / "+r.stamina.max);addKv(box,"生命三层",r.life.current+" / "+r.life.injuryCap+" / "+r.life.max);addKv(box,"内力双层",r.neili.current+" / "+r.neili.max);addKv(box,"内功境界上限",innerCap(state));addKv(box,"内力成长进度",r.neili.progress+" / 100（占位）");addKv(box,"失败接回",state.lastOutcome);addKv(box,"下次药费 / 欠款","第 "+state.mother.nextBillDay+" 日 / "+state.mother.debt+" 文");
+    /* 病情按欠款分支写进正文：读的是 mother.debt，没有第二套病情值，也不占状态栏。 */
+    $("motherline").textContent=motherConditionLine(state)}
   function renderActions(){const box=$("actions");box.innerHTML="";let group="";ACTIONS.forEach(a=>{if(a.group!==group){group=a.group;const g=document.createElement("div");g.className="group";g.textContent=group;box.appendChild(g)}const b=document.createElement("button"),why=unavailableReason(state,a);b.textContent=a.label;if(why){b.disabled=true;const s=document.createElement("small");s.textContent=why;b.appendChild(s)}b.onclick=()=>{state=applyAction(state,a.id);render()};box.appendChild(b)})}
-  function renderCatalog(){const rows=Object.keys(BODY_TAG_CATALOG).map(id=>{const t=BODY_TAG_CATALOG[id],e=t.effects,fx=[];if(e.staminaRecoveryMultiplier)fx.push("体力恢复 ×"+e.staminaRecoveryMultiplier+"（占位）");if(e.blockHighIntensity)fx.push("限制高强度行动");if(e.blockInnerRecovery)fx.push("限制内力恢复");return"<tr><th>"+t.name+"</th><td><code>"+id+"</code></td><td>"+fx.join("；")+"</td><td>"+t.clears+"</td></tr>"}).join("");$("catalog").innerHTML="<table><thead><tr><th>名称</th><th>唯一 ID</th><th>局部影响</th><th>解除条件</th></tr></thead><tbody>"+rows+"</tbody></table>"}
   function renderChecks(){const box=$("checks");box.innerHTML="";invariantReport(state).forEach(c=>{const d=document.createElement("div");d.className="check "+(c.ok?"ok":"bad");d.textContent=(c.ok?"✓ ":"✗ ")+c.text;box.appendChild(d)})}
   function renderLog(){const box=$("log");box.innerHTML="";if(!state.log.length){box.innerHTML="<li class='hint'>尚无记录。</li>";return}state.log.forEach(e=>{const li=document.createElement("li");li.innerHTML="<time>第 "+e.day+" 日 "+hhmm(e.minute)+"</time>"+e.text;box.appendChild(li)})}
   function renderTabs(){const box=$("tabs");box.innerHTML="";SCENARIOS.forEach((sc,i)=>{const b=document.createElement("button");b.textContent=sc.key;if(i===scenarioIndex)b.className="on";b.onclick=()=>{scenarioIndex=i;stepIndex=0;state=initialState();if(sc.setup)state=sc.setup(state);render()};box.appendChild(b)})}
   function renderScenario(){const sc=SCENARIOS[scenarioIndex],box=$("scenario");box.innerHTML="<p>"+sc.blurb+"</p>";const steps=document.createElement("div");steps.className="steps";sc.steps.forEach((id,i)=>{const a=actionById(id),b=document.createElement("button"),why=unavailableReason(state,a);b.textContent=(i+1)+". "+a.label+(i===stepIndex&&why?"（当前不可用："+why+"）":"");b.disabled=i!==stepIndex||Boolean(why);if(i<stepIndex)b.className="done";b.onclick=()=>{state=applyAction(state,id);stepIndex=i+1;render()};steps.appendChild(b)});box.appendChild(steps);const reset=document.createElement("button");reset.textContent="重开本走查";reset.style.marginTop="8px";reset.onclick=()=>{state=initialState();if(sc.setup)state=sc.setup(state);stepIndex=0;render()};box.appendChild(reset)}
-  function render(){renderState();renderActions();renderCatalog();renderChecks();renderTabs();renderScenario();renderLog()}render();
+  function render(){renderState();renderActions();renderChecks();renderTabs();renderScenario();renderLog()}render();
 })();
 </script>
 </body>
