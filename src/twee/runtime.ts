@@ -20,6 +20,8 @@ export interface SliceState {
   visited: Record<string, true>;
   /** 跑到没有选项也没有 next 的单元：本批到此为止（后续接自由行动） */
   atFreeActions: boolean;
+  /** 上一个选项的正文（选中后与目标单元的正文连排） */
+  pendingText?: string[];
   /** 最近一次推进产生的行止记录（UI 用） */
   recent: string[];
 }
@@ -28,7 +30,8 @@ export const SLICE_TUNE = {
   staminaMax: 100,
   lifeMax: 100,
   neiliMax: 40,
-  money: 40,
+  /** 开场身上没钱：家里只剩父亲那把刀能换钱（#20 开场改版） */
+  money: 0,
   day: 1,
   minute: 8 * 60,
   home: "城郊家村",
@@ -252,8 +255,12 @@ function renderBlocks(blocks: IrBlock[], state: SliceState, out: string[]): void
   for (const block of blocks) {
     switch (block.k) {
       case "text": {
-        const text = renderChunks(block.chunks, state).trim();
-        if (text !== "") out.push(text);
+        // 一个正文块里按空行分段：AI/人写的段落就是一自然段一句，标记不必手写
+        const text = renderChunks(block.chunks, state);
+        for (const para of text.split(/\n{2,}/)) {
+          const trimmed = para.trim();
+          if (trimmed !== "") out.push(trimmed);
+        }
         break;
       }
       case "if": {
@@ -274,7 +281,7 @@ function renderBlocks(blocks: IrBlock[], state: SliceState, out: string[]): void
 
 /** 把 passage 渲染成视图；只读，不写状态。 */
 export function renderPassage(passage: IrPassage, state: SliceState, program: TweeProgram): TweeView {
-  const paragraphs: string[] = [];
+  const paragraphs: string[] = [...(state.pendingText ?? [])];
   renderBlocks(passage.blocks, state, paragraphs);
   const options: TweeOption[] = passage.choices.map((c) => {
     const blocked = c.when && !truthy(evalExpr(c.when, state)) ? "条件不满足" : checkCost(c.cost, state).ok ? undefined : checkCost(c.cost, state).reasons.join("、");
@@ -300,12 +307,20 @@ export function passageById(program: TweeProgram, id: string): IrPassage | null 
 }
 
 /** 进入一个单元：记访问、按头部元数据更新地点、清行止记录、判定是否已到自由行动。 */
-export function enterPassage(program: TweeProgram, state: SliceState, id: string, recent: string[] = []): TweeView {
+export function enterPassage(
+  program: TweeProgram,
+  state: SliceState,
+  id: string,
+  recent: string[] = [],
+  choiceText: string[] = [],
+): TweeView {
   const passage = passageById(program, id);
   if (!passage) throw new Error(`没有这个单元：${id}`);
   state.visited[id] = true;
   if (passage.meta.地点) state.location = passage.meta.地点;
   state.recent = recent;
+  // 选项正文与目标单元正文连排：玩家先看到自己干的那件事，再看到落到的场景
+  state.pendingText = choiceText;
   state.atFreeActions = passage.choices.length === 0 && passage.next === undefined;
   return renderPassage(passage, state, program);
 }
@@ -313,6 +328,7 @@ export function enterPassage(program: TweeProgram, state: SliceState, id: string
 /** 自动前进：只有 next、没有选项的段落用。返回 null 表示已经到底。 */
 export function followNext(program: TweeProgram, state: SliceState, passage: IrPassage): TweeView | null {
   if (passage.next === undefined) return null;
+  state.pendingText = [];
   return enterPassage(program, state, passage.next);
 }
 
@@ -326,6 +342,8 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
   if (!blocked.ok) throw new Error(`选项 ${choiceId} 付不起：${blocked.reasons.join("、")}`);
   payCost(choice.cost, state);
   const lines: string[] = [];
+  const choiceParas: string[] = [];
+  renderBlocks(choice.blocks, state, choiceParas);
   for (const block of choice.blocks) {
     if (block.k === "effect") {
       for (const eff of block.effects) {
@@ -335,11 +353,14 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
     }
   }
   state.recent = lines;
-  if (choice.next === undefined) {
+  // 选项没写 next 时，落到所在单元的 <<next>>（「做完这件事就往下走」的常见形态）
+  const nextId = choice.next ?? passage.next;
+  if (nextId === undefined) {
+    state.pendingText = choiceParas;
     state.atFreeActions = true;
     return renderPassage(passage, state, program);
   }
-  return enterPassage(program, state, choice.next, lines);
+  return enterPassage(program, state, nextId, lines, choiceParas);
 }
 
 /* ---------------- 构建期校验门（IR 之外） ---------------- */

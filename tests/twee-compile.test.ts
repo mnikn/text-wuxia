@@ -184,21 +184,23 @@ describe("受限表达式", () => {
   });
 });
 
-describe("开头三段（本批真实内容）", () => {
+describe("开场内容（本批真实内容）", () => {
   it("过校验门，且结构就是定下的那条最短路径", () => {
     const p = parseTwee(OPENING);
     expect(errs(p.diagnostics)).toEqual([]);
-    expect(Object.keys(p.index)).toEqual(["开场.家门外", "开场.官道", "开场.南门贫巷"]);
-    const [home, road, alley] = p.passages;
+    expect(Object.keys(p.index)).toEqual(["开场.家门外", "开场.官道", "开场.南门贫巷", "开场.药铺", "开场.停留"]);
+    const [home, road, alley, pharmacy, stop] = p.passages;
     expect(home!.choices).toHaveLength(0);
     expect(home!.next).toBe("开场.官道");
     expect(road!.choices.map((c) => c.id)).toEqual(["help", "go"]);
     expect(road!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 30, pos: { line: 17 } });
     expect(road!.choices[0]!.next).toBe("开场.南门贫巷");
     expect(road!.choices[1]!.cost?.time).toEqual({ kind: "literal", value: 10, pos: { line: 26 } });
-    expect(alley!.choices).toHaveLength(0);
-    expect(alley!.next).toBeUndefined();
-    expect(summarize(p)).toContain("3 个单元、2 个选项");
+    expect(alley!.choices.map((c) => c.id)).toEqual(["pawn", "skip"]);
+    expect(pharmacy!.choices.map((c) => c.id)).toEqual(["buy"]);
+    expect(pharmacy!.next).toBe("开场.停留");
+    expect(stop!.choices).toHaveLength(0);
+    expect(summarize(p)).toContain("5 个单元、5 个选项");
   });
 
   it("发射产物确定", () => {
