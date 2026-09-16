@@ -104,6 +104,52 @@ describe("选项与后续", () => {
   });
 });
 
+describe("就地结算（stay）", () => {
+  it('stay="true" 解析成就地结算', () => {
+    const p = parseTwee(
+      join(":: a [scene]", "", "正文。", "", '<<choice id="look" label="细看" stay="true">>', "看清了。", "<</choice>>", '<<choice id="go" label="走">>', "走了。", "<</choice>>", ""),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    expect(p.passages[0]!.choices[0]!.stay).toBe(true);
+    expect(p.passages[0]!.choices[1]!.stay).toBeUndefined();
+  });
+
+  it("stay 只认 true，别的值报错", () => {
+    const p = parseTwee(join(":: a [scene]", '<<choice id="x" label="甲" stay="yes">>', "甲", "<</choice>>", ""));
+    expect(errs(p.diagnostics)).toContain("choice-attr");
+  });
+
+  it("就地结算的选项不能再写 <<next>>", () => {
+    const p = parseTwee(
+      join(":: a [scene]", '<<choice id="x" label="甲" stay="true">>', "甲", "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""),
+    );
+    expect(errs(p.diagnostics)).toContain("stay-next");
+  });
+
+  it("选项全是 stay 时单元级 <<next>> 走不到，给 warning", () => {
+    const p = parseTwee(
+      join(":: a [scene]", "", '<<choice id="x" label="甲" stay="true">>', "甲", "<</choice>>", "<<next b>>", "", ":: b [scene]", "乙", ""),
+    );
+    expect(warns(p.diagnostics)).toContain("stay-next");
+  });
+
+  it("show= 与 mark= 解析：出现条件与看过的名字", () => {
+    const p = parseTwee(
+      join(":: a [scene]", `<<choice id="x" label="甲" stay="true" mark="看过甲" show="!seen('看过甲')">>`, "甲", "<</choice>>", ""),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    const c = p.passages[0]!.choices[0]!;
+    expect(c.stay).toBe(true);
+    expect(c.mark).toBe("看过甲");
+    expect(describeExpr(c.show!)).toContain("看过甲");
+  });
+
+  it("mark 名不合形报错", () => {
+    const p = parseTwee(join(":: a [scene]", '<<choice id="x" label="甲" mark="看过 甲">>', "甲", "<</choice>>", ""));
+    expect(errs(p.diagnostics)).toContain("mark-form");
+  });
+});
+
 describe("正文插值与条件块", () => {
   it("插值切出独立片段", () => {
     const p = parseTwee(join(":: a", "你身上还有 <<= money >> 文。", ""));

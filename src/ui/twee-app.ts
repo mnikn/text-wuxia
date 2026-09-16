@@ -25,6 +25,8 @@ const program = { passages: PASSAGES, index: INDEX, diagnostics: [] } as unknown
 const app = document.getElementById("app")!;
 let state: SliceState = createSliceState();
 let view: TweeView | null = null;
+/** 上一次渲染的单元：同一单元再来一次视图时走追加，不重排正文 */
+let lastPassageId: string | null = null;
 
 app.innerHTML = `
   <div id="screen-title" class="screen on">
@@ -82,15 +84,34 @@ function renderSide(): void {
   $("side-money").textContent = formatMoney(state.money);
 }
 
-function renderStory(): void {
+/** 追加式落笔：stay 结算只把新段落接在正文后面，不重排、不跳回顶部。 */
+function appendStory(paras: string[]): void {
   const body = $("story-body");
-  body.innerHTML = "";
-  for (const para of view!.paragraphs) {
+  for (const para of paras) {
     const p = document.createElement("p");
     p.textContent = para;
     body.appendChild(p);
   }
+}
+
+/** 返回 true 表示这次是追加（滚动要跟到底），false 表示整块重排（滚动归零）。 */
+function renderStory(): boolean {
+  const body = $("story-body");
+  const v = view!;
+  const append = v.appended !== undefined && v.appended.length > 0 && lastPassageId === v.passageId;
+  if (append) {
+    appendStory(v.appended!);
+  } else {
+    body.innerHTML = "";
+    for (const para of v.paragraphs) {
+      const p = document.createElement("p");
+      p.textContent = para;
+      body.appendChild(p);
+    }
+  }
+  lastPassageId = v.passageId;
   $("recent").textContent = state.recent.length > 0 ? state.recent.join("　") : "";
+  return append;
 }
 
 function renderChoices(): void {
@@ -133,10 +154,10 @@ function renderChoices(): void {
 function render(): void {
   if (!view) return;
   renderSide();
-  renderStory();
+  const appended = renderStory();
   renderChoices();
   const scroller = document.querySelector("#game .scroll");
-  if (scroller) scroller.scrollTop = 0;
+  if (scroller) scroller.scrollTop = appended ? scroller.scrollHeight : 0;
 }
 
 function setSide(open: boolean): void {
@@ -147,6 +168,7 @@ function setSide(open: boolean): void {
 function start(): void {
   state = createSliceState();
   view = enterPassage(program, state, SLICE_TUNE.startPassage);
+  lastPassageId = null;
   $("screen-title").classList.remove("on");
   $("game").classList.add("on");
   setSide(wide());

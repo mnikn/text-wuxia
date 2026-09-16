@@ -64,6 +64,12 @@ export interface IrChoice {
   check?: IrCheck;
   blocks: IrBlock[];
   next?: string;
+  /** 就地结算：结算完不换单元，结算文追加在当前正文之后（观察、查看这类） */
+  stay?: boolean;
+  /** 满足才渲染这个选项（不满足时不出现，与 if= 的「灰化示因」是两回事） */
+  show?: Expr;
+  /** 选中后记下的名字，配 `seen("名字")` 用（就地结算的观察靠它做前后变化） */
+  mark?: string;
   pos: SourcePos;
 }
 

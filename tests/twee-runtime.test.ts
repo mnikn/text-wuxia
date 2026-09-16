@@ -194,6 +194,82 @@ describe("渲染不写状态", () => {
   });
 });
 
+describe("就地结算（stay）与前后变化", () => {
+  const STAY = join(
+    ":: s [scene]",
+    '{"地点":"丙地"}',
+    "",
+    "屋里很静。",
+    "",
+    `<<choice id="look" label="细看" stay="true" mark="看过痕" show="!seen('看过痕')">>`,
+    "你凑近看，看清了一道旧痕。",
+    "<</choice>>",
+    `<<choice id="go" label="走" cost="time 30" show="seen('看过痕')">>`,
+    "你走了。",
+    "<<next t>>",
+    "<</choice>>",
+    "",
+    ":: t [scene]",
+    "",
+    "到了。",
+    "",
+  );
+  const stayProgram = parseTwee(STAY);
+
+  it("要看过才出现的选项，没看过时不在选项里", () => {
+    const state = createSliceState();
+    const view = enterPassage(stayProgram, state, "s");
+    expect(view.options.map((o) => o.id)).toEqual(["look"]);
+  });
+
+  it("就地结算：不换单元、不动时间与资源，结算文走 appended，选项换成看过之后的那批", () => {
+    const state = createSliceState();
+    enterPassage(stayProgram, state, "s");
+    const before = { minute: state.clock.minute, money: state.money, stamina: state.stamina.current };
+    const view = chooseOption(stayProgram, state, "s", "look");
+    expect(view.passageId).toBe("s");
+    expect(view.appended).toEqual(["你凑近看，看清了一道旧痕。"]);
+    expect(view.options.map((o) => o.id)).toEqual(["go"]);
+    expect(state.clock.minute).toBe(before.minute);
+    expect(state.money).toBe(before.money);
+    expect(state.stamina.current).toBe(before.stamina);
+  });
+
+  it("就地结算不把状态打成自由行动，也不写行止记录", () => {
+    const state = createSliceState();
+    enterPassage(stayProgram, state, "s");
+    chooseOption(stayProgram, state, "s", "look");
+    expect(state.atFreeActions).toBe(false);
+    expect(state.recent).toEqual([]);
+  });
+
+  it("mark 写进 visited，seen() 读得到", () => {
+    const state = createSliceState();
+    enterPassage(stayProgram, state, "s");
+    expect(evalExpr(parseExpr("seen('看过痕')", 1).expr!, state)).toBe(false);
+    chooseOption(stayProgram, state, "s", "look");
+    expect(state.visited["看过痕"]).toBe(true);
+    expect(evalExpr(parseExpr("seen('看过痕')", 1).expr!, state)).toBe(true);
+  });
+
+  it("看完照常走下去：普通选项不带 appended，时间照推", () => {
+    const state = createSliceState();
+    enterPassage(stayProgram, state, "s");
+    chooseOption(stayProgram, state, "s", "look");
+    const before = state.clock.minute;
+    const view = chooseOption(stayProgram, state, "s", "go");
+    expect(view.passageId).toBe("t");
+    expect(view.appended).toBeUndefined();
+    expect(state.clock.minute).toBe(before + 30);
+  });
+
+  it("条件不成立的选项强行选中会抛错", () => {
+    const state = createSliceState();
+    enterPassage(stayProgram, state, "s");
+    expect(() => chooseOption(stayProgram, state, "s", "go")).toThrow(/不出现/);
+  });
+});
+
 describe("银钱显示口径", () => {
   it("一两 = 一千文，换算只在显示层", () => {
     expect(formatMoney(0)).toBe("0 文");

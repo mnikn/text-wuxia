@@ -165,6 +165,8 @@ const EFF_TARGETS = new Set(["money", "stamina", "neili", "hp", "role", "log"]);
 /** 代价条目的可支付子集；`time` 是保留字（走时间推进，不进效果表） */
 const COST_KEYS = new Set(["time", "money", "stamina", "neili"]);
 const IDENT_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff-]*$/;
+/** 标记名：与标识符同形，但允许点号分段（`开场.看过剑`） */
+const MARK_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff.-]*$/;
 /** 单元 id：允许点分（`开场.家门外`），命名约定见 #16 与票据 009 */
 const PASSAGE_ID_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff.-]*$/;
 
@@ -353,6 +355,9 @@ function parseBody(
         if (!PASSAGE_ID_RE.test(target)) {
           error(ctx, cur.line, "next-form", `<<next>> 要写一个单元 id，读到「${target}」`);
         } else if (openChoice) {
+          if (openChoice.stay) {
+            error(ctx, cur.line, "stay-next", `选项 ${openChoice.id} 写了 stay="true"（就地结算），不能再写 <<next>>`);
+          }
           openChoice.next = target;
         } else if (out.next) {
           error(ctx, cur.line, "next-dup", `单元已经有 <<next>> 了`);
@@ -370,7 +375,7 @@ function parseBody(
       const label = attrs["label"];
       if (!id) error(ctx, cur.line, "choice-id", "<<choice>> 缺少 id");
       if (!label) error(ctx, cur.line, "choice-label", "<<choice>> 缺少 label");
-      const unknown = Object.keys(attrs).filter((k) => !["id", "label", "if", "cost", "check"].includes(k));
+      const unknown = Object.keys(attrs).filter((k) => !["id", "label", "if", "cost", "check", "stay", "show", "mark"].includes(k));
       if (unknown.length > 0) {
         error(ctx, cur.line, "choice-attr", `<<choice>> 不认识的参数：${unknown.join(" / ")}`);
       }
@@ -387,6 +392,19 @@ function parseBody(
       }
       if (attrs["cost"] !== undefined) choice.cost = parseCost(ctx, attrs["cost"], cur.line);
       if (attrs["check"] !== undefined) choice.check = parseCheck(ctx, attrs["check"], cur.line);
+      if (attrs["stay"] !== undefined) {
+        if (attrs["stay"] !== "true") error(ctx, cur.line, "choice-attr", `<<choice>> 的 stay 只认 stay="true"，读到「${attrs["stay"]}」`);
+        else choice.stay = true;
+      }
+      if (attrs["show"] !== undefined) {
+        const { expr, diagnostics } = parseExpr(attrs["show"], cur.line);
+        ctx.diags.push(...diagnostics);
+        if (expr) choice.show = expr;
+      }
+      if (attrs["mark"] !== undefined) {
+        if (!MARK_RE.test(attrs["mark"])) error(ctx, cur.line, "mark-form", `mark 要写一个名字（点号分段也可以），读到「${attrs["mark"]}」`);
+        else choice.mark = attrs["mark"];
+      }
       if (openChoice) error(ctx, cur.line, "choice-nested", "选项不能嵌套在选项里");
       out.choices.push(choice);
       parseBody(ctx, lines.slice(i + 1), { blocks: choice.blocks, choices: [] }, choice, "choice");
@@ -618,6 +636,9 @@ function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>
     });
     if (p.choices.length === 0 && p.next === undefined && !isTemplate && !p.tags.includes("action")) {
       warn(ctx, p.pos.line, "passage-no-choice", `单元 ${p.id} 既没有选项也没有 <<next>>：它是一条死路`);
+    }
+    if (p.next !== undefined && p.choices.length > 0 && p.choices.every((c) => c.stay)) {
+      warn(ctx, p.pos.line, "stay-next", `单元 ${p.id} 的选项全是 stay="true"（就地结算），单元级 <<next>> 永远走不到`);
     }
   }
 }

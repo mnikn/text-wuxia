@@ -91,9 +91,14 @@ export function evalExpr(expr: Expr, state: SliceState): number | string | boole
       }
       return null;
     }
-    case "call":
-      // 具名谓词（at/rel/cap…）要等词表那批接；本批内容不用
+    case "call": {
+      // 目前只接 seen()：读的就是 visited 表（进过的单元、选过的 mark 都在里头）
+      if (expr.name === "seen") {
+        const arg = evalExpr(expr.arg, state);
+        return typeof arg === "string" && state.visited[arg] === true;
+      }
       return null;
+    }
   }
 }
 
@@ -241,6 +246,8 @@ export interface TweeView {
   /** 本批到此为止：下一步是自由行动 */
   atFreeActions: boolean;
   recent: string[];
+  /** 就地结算（stay）新追加的段落；UI 只在同一单元里把它接在正文后面 */
+  appended?: string[];
 }
 
 /** 代价摘要：`耗时 30 分钟，花 8 文`。 */
@@ -297,10 +304,12 @@ function renderBlocks(blocks: IrBlock[], state: SliceState, out: string[]): void
 export function renderPassage(passage: IrPassage, state: SliceState, program: TweeProgram): TweeView {
   const paragraphs: string[] = [...(state.pendingText ?? [])];
   renderBlocks(passage.blocks, state, paragraphs);
-  const options: TweeOption[] = passage.choices.map((c) => {
-    const blocked = c.when && !truthy(evalExpr(c.when, state)) ? "条件不满足" : checkCost(c.cost, state).ok ? undefined : checkCost(c.cost, state).reasons.join("、");
-    return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked };
-  });
+  const options: TweeOption[] = passage.choices
+    .filter((c) => c.show === undefined || truthy(evalExpr(c.show, state)))
+    .map((c) => {
+      const blocked = c.when && !truthy(evalExpr(c.when, state)) ? "条件不满足" : checkCost(c.cost, state).ok ? undefined : checkCost(c.cost, state).reasons.join("、");
+      return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked };
+    });
   return {
     passageId: passage.id,
     paragraphs,
@@ -352,6 +361,9 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
   if (!passage) throw new Error(`没有这个单元：${passageId}`);
   const choice = passage.choices.find((c) => c.id === choiceId);
   if (!choice) throw new Error(`单元 ${passageId} 里没有选项 ${choiceId}`);
+  if (choice.show !== undefined && !truthy(evalExpr(choice.show, state))) {
+    throw new Error(`选项 ${choiceId} 现在不出现`);
+  }
   const blocked = checkCost(choice.cost, state);
   if (!blocked.ok) throw new Error(`选项 ${choiceId} 付不起：${blocked.reasons.join("、")}`);
   payCost(choice.cost, state);
@@ -367,6 +379,13 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
     }
   }
   state.recent = lines;
+  if (choice.mark) state.visited[choice.mark] = true;
+  // 就地结算：不换单元，结算文作为追加段落交回视图（观察、查看这类）
+  if (choice.stay) {
+    const stayView = renderPassage(passage, state, program);
+    stayView.appended = choiceParas;
+    return stayView;
+  }
   // 选项没写 next 时，落到所在单元的 <<next>>（「做完这件事就往下走」的常见形态）
   const nextId = choice.next ?? passage.next;
   if (nextId === undefined) {
