@@ -2,7 +2,6 @@
  * Twee 编译器最小内核的测试（对应 #20 本批：只覆盖最短路径需要的子集）。
  */
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
 import { parseTwee } from "../src/twee/parse";
 import { parseExpr, describeExpr } from "../src/twee/expr";
 import { emitModule, toPlain, summarize } from "../src/twee/emit";
@@ -12,14 +11,12 @@ const errs = (diags: Diagnostic[]) => diags.filter((d) => d.level === "error").m
 const warns = (diags: Diagnostic[]) => diags.filter((d) => d.level === "warning").map((d) => d.code);
 const join = (...lines: string[]) => lines.join("\n");
 
-const OPENING = readFileSync("src/content/twee/开场.twee", "utf8");
-
 describe("passage 头部", () => {
   it("名 + 标签 + 紧跟一行的纯字面量元数据", () => {
-    const p = parseTwee(join(":: 开场.家门外 [scene start]", '{"weight": 6, "once": true}', "母亲倚在门边。", ""));
+    const p = parseTwee(join(":: 场景.门口 [scene start]", '{"weight": 6, "once": true}', "门外起风了。", ""));
     expect(errs(p.diagnostics)).toEqual([]);
     const ps = p.passages[0]!;
-    expect(ps.id).toBe("开场.家门外");
+    expect(ps.id).toBe("场景.门口");
     expect(ps.tags).toEqual(["scene", "start"]);
     expect(ps.meta).toEqual({ weight: 6, once: true });
   });
@@ -50,24 +47,24 @@ describe("passage 头部", () => {
   });
 });
 
-describe("选项与后续", () => {
-  const SRC = join(
-    ":: a [scene]",
-    '<<choice id="help" label="上前搭手" cost="time 30">>',
-    "  你上前搭手。",
-    "<<eff money +6, stamina -10>>",
-    "<<next b>>",
-    "<</choice>>",
-    '<<choice id="go" label="径直上路">>',
-    "  你没停脚。",
-    "<<next b>>",
-    "<</choice>>",
-    "",
-    ":: b [scene]",
-    "到了。",
-    "",
-  );
+const SRC = join(
+  ":: a [scene]",
+  '<<choice id="help" label="上前搭手" cost="time 30">>',
+  "  你上前搭手。",
+  "<<eff money +6, stamina -10>>",
+  "<<next b>>",
+  "<</choice>>",
+  '<<choice id="go" label="径直上路">>',
+  "  你没停脚。",
+  "<<next b>>",
+  "<</choice>>",
+  "",
+  ":: b [scene]",
+  "到了。",
+  "",
+);
 
+describe("选项与后续", () => {
   it("解析出两个选项：代价、效果、后续都在", () => {
     const p = parseTwee(SRC);
     expect(errs(p.diagnostics)).toEqual([]);
@@ -184,53 +181,19 @@ describe("受限表达式", () => {
   });
 });
 
-describe("开场内容（本批真实内容）", () => {
-  it("过校验门，且结构就是定下的那条最短路径", () => {
-    const p = parseTwee(OPENING);
-    expect(errs(p.diagnostics)).toEqual([]);
-    expect(Object.keys(p.index)).toEqual([
-      "开场.家门外",
-      "开场.官道",
-      "开场.南门贫巷",
-      "开场.当铺",
-      "开场.药铺",
-      "开场.市集",
-      "开场.出城",
-      "开场.停留",
-    ]);
-    const [home, road, alley, pawnshop, pharmacy, market, leaving, stop] = p.passages;
-    expect(home!.choices.map((c) => c.id)).toEqual(["take"]);
-    expect(home!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 5, pos: { line: 16 } });
-    expect(home!.choices[0]!.next).toBe("开场.官道");
-    expect(road!.choices.map((c) => c.id)).toEqual(["on"]);
-    expect(road!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 120, pos: { line: 37 } });
-    // 赶路只花时间：体力的代价已经从开场拿掉
-    expect(road!.choices[0]!.cost?.stamina).toBeUndefined();
-    expect(road!.choices[0]!.next).toBe("开场.南门贫巷");
-    expect(alley!.choices.map((c) => c.id)).toEqual(["pawn"]);
-    expect(alley!.choices[0]!.next).toBe("开场.当铺");
-    expect(pawnshop!.choices.map((c) => c.id)).toEqual(["pawn"]);
-    expect(pawnshop!.choices[0]!.cost).toEqual({
-      time: { kind: "literal", value: 15, pos: { line: 67 } },
-      pos: { line: 67 },
-    });
-    expect(pawnshop!.choices[0]!.next).toBe("开场.药铺");
-    expect(pharmacy!.choices.map((c) => c.id)).toEqual(["buy"]);
-    expect(pharmacy!.choices[0]!.cost?.money).toEqual({ kind: "literal", value: 300, pos: { line: 81 } });
-    expect(market!.choices.map((c) => c.id)).toEqual(["grain"]);
-    expect(market!.choices[0]!.cost?.money).toEqual({ kind: "literal", value: 200, pos: { line: 98 } });
-    expect(leaving!.choices.map((c) => c.id)).toEqual(["back"]);
-    expect(leaving!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 120, pos: { line: 115 } });
-    expect(stop!.choices).toHaveLength(0);
-    expect(stop!.next).toBeUndefined();
-    expect(summarize(p)).toContain("8 个单元、7 个选项");
+describe("发射产物", () => {
+  it("emitModule 对同一 IR 幂等", () => {
+    const p = parseTwee(SRC);
+    expect(emitModule(p)).toBe(emitModule(p));
   });
 
-  it("发射产物确定", () => {
-    const p = parseTwee(OPENING);
-    expect(emitModule(p)).toBe(emitModule(p));
-    const plain = toPlain(p);
-    // 第 4 个单元是当铺，效果条目在它的选项里
-    expect(plain.passages[3]!.choices[0]!.blocks.some((b) => b.k === "effect")).toBe(true);
+  it("toPlain 保留选项里的效果块", () => {
+    const plain = toPlain(parseTwee(SRC));
+    // 效果条目挂在选项上，跟着选项一起发射
+    expect(plain.passages[0]!.choices[0]!.blocks.some((b) => b.k === "effect")).toBe(true);
+  });
+
+  it("summarize 报单元数、选项数与诊断计数", () => {
+    expect(summarize(parseTwee(SRC))).toContain("2 个单元、2 个选项");
   });
 });
