@@ -1,0 +1,1073 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>生存状态与恢复循环 · 粗糙可玩原型（票据 #24）</title>
+<style>
+  :root{
+    --ink:#26221e; --ink2:#5b5349; --ink3:#8a8078;
+    --paper:#f7f3ec; --card:#fffdf9; --line:#e2d9cb;
+    --accent:#8a5a2b; --accent-soft:#f0e3d4;
+    --warn:#a8442a; --ok:#3f6b4a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font:15px/1.7 "Noto Serif SC","Songti SC","Source Han Serif SC",Georgia,serif;}
+  header{padding:28px 24px 18px;border-bottom:1px solid var(--line);background:var(--card)}
+  h1{margin:0 0 8px;font-size:22px;letter-spacing:.02em}
+  h2{margin:0 0 10px;font-size:15px;letter-spacing:.06em;color:var(--ink2);font-weight:600}
+  .q{margin:0 0 6px;max-width:80ch;color:var(--ink)}
+  .meta{margin:0;font-size:13px;color:var(--ink3)}
+  main{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:18px;padding:18px 24px 64px;align-items:start}
+  .col{display:flex;flex-direction:column;gap:18px;min-width:0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px}
+  .preset-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+  button{font:inherit;font-size:14px;padding:7px 12px;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:6px;cursor:pointer;text-align:left}
+  button:hover:not(:disabled){border-color:var(--accent);background:var(--accent-soft)}
+  button:disabled{opacity:.42;cursor:not-allowed}
+  button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  button .why{display:block;font-size:12px;color:var(--ink3);margin-top:2px}
+  button:disabled .why{color:var(--warn)}
+  button.on .why{color:#f4e6d8}
+  .axes{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink2);margin-top:4px}
+  .axes label{display:flex;align-items:center;gap:6px}
+  select{font:inherit;font-size:13px;padding:3px 6px;border:1px solid var(--line);border-radius:5px;background:#fff}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px 18px}
+  .kv{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dotted var(--line);padding:3px 0;font-size:14px}
+  .kv span:first-child{color:var(--ink2);white-space:nowrap;flex:0 0 auto}
+  .kv span:last-child,.kv b{font-weight:600;font-variant-numeric:tabular-nums;text-align:right;min-width:0}
+  .kv.long{display:block}
+  .kv.long b{display:block;text-align:left}
+  .tags{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+  .tag{font-size:12px;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+  .tag.warn{background:#f7e2da;color:var(--warn)}
+  .tag.ok{background:#e4efe6;color:var(--ok)}
+  .acts{display:flex;flex-wrap:wrap;gap:8px}
+  .acts button{min-width:150px}
+  .rules table{width:100%;border-collapse:collapse;font-size:13px}
+  .rules th,.rules td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+  .rules th{color:var(--ink2);font-weight:600}
+  .rules td:first-child{white-space:nowrap}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .tabs button{font-size:13px;padding:5px 10px}
+  .scenario p{margin:0 0 8px;font-size:13.5px;color:var(--ink2)}
+  .steps{display:flex;flex-direction:column;gap:6px}
+  .steps button{font-size:13.5px}
+  .steps button.done{color:var(--ink3);border-style:dashed}
+  .hint{font-size:12.5px;color:var(--ink3);margin:6px 0 0}
+  ol.log{list-style:none;margin:0;padding:0;font-size:13px;max-height:290px;overflow:auto}
+  ol.log li{padding:4px 0;border-bottom:1px dotted var(--line)}
+  ol.log li time{color:var(--ink3);margin-right:8px;font-variant-numeric:tabular-nums}
+  .tune{display:flex;flex-direction:column;gap:8px;font-size:13px;color:var(--ink2)}
+  .tune label{display:grid;grid-template-columns:170px 1fr 70px;align-items:center;gap:10px}
+  .tune input[type=range]{width:100%;accent-color:var(--accent)}
+  .tune b{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .softlock{border-left:3px solid var(--ok);padding-left:10px;font-size:13.5px}
+  .softlock.bad{border-color:var(--warn)}
+  code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;background:#f2ece2;padding:1px 5px;border-radius:4px}
+  footer{padding:0 24px 48px;font-size:12.5px;color:var(--ink3)}
+</style>
+</head>
+<body>
+<header>
+  <h1>生存状态与恢复循环 · 粗糙可玩原型</h1>
+  <p class="q">问题：新江湖生活循环需要哪些身体与生存状态？不预设保留旧饥饿、疲劳、伤势——各状态给玩家制造什么取舍、如何随行动与时间变化、如何恢复、如何与保底谋生 / 旬结药钱 / 母亲线 / 战斗失败衔接，哪些该删掉以免维护税堆叠。</p>
+  <p class="meta">票据 <a href="https://github.com/mnikn/text-wuxia/issues/24">重设计生存状态与恢复循环（#24）</a> · 单文件、双击即玩、状态只存内存 · 武学成长与战斗结算的细节归 #23，此处只取后果形状</p>
+  <p class="meta"><b>已定（2026-09-15）：身体状态 = 体力 / 生命值 / 内力三条资源</b>，默认组合即此案；其余组合（A～E）作为对照保留，用来回看当初为什么删掉饥饿、疲劳、伤势档位与病气。</p>
+</header>
+
+<main>
+  <div class="col">
+    <section>
+      <h2>① 候选组合（身体状态轴）</h2>
+      <div class="preset-row" id="presets"></div>
+      <p id="preset-note" class="hint"></p>
+      <div class="axes" id="axis-toggles"></div>
+      <p class="hint">四条轴可单独开关，做交叉对比：<b>损伤轴</b>=损伤怎么记（决定版用生命值）；<b>体力轴</b>=有没有每日行动预算（决定版有一条件力）；<b>内力轴</b>=有没有第三条机会资源（决定版有）；<b>病气轴</b>=要不要环境病气（决定版关，已否）。</p>
+    </section>
+
+    <section>
+      <h2>② 当前状态</h2>
+      <div class="grid2" id="state-panel"></div>
+      <div class="tags" id="state-tags"></div>
+    </section>
+
+    <section>
+      <h2>③ 自由行动</h2>
+      <div class="acts" id="actions"></div>
+      <p class="hint">不可用的行动保留在界面上并写明原因（沿用 #5 的按钮契约）。任何状态下<b>保底劳动始终可用</b>，保证时钟恒可推进。</p>
+    </section>
+
+    <section class="rules">
+      <h2>④ 状态规则表（本原型正在用的定义）</h2>
+      <div id="rules"></div>
+    </section>
+
+    <section>
+      <h2>⑤ 引导走查</h2>
+      <div class="tabs" id="tabs"></div>
+      <div class="scenario" id="scenario"></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section>
+      <h2>判据：压力是否可读、失败是否可恢复</h2>
+      <div id="metrics"></div>
+      <div id="softlock" class="softlock"></div>
+    </section>
+
+    <section>
+      <h2>常数（原型可调，正式常量表归后续实现票）</h2>
+      <div class="tune" id="tune"></div>
+      <p class="hint">改动会按当前组合重开一局。</p>
+    </section>
+
+    <section>
+      <h2>行止记录</h2>
+      <ol class="log" id="log"></ol>
+    </section>
+  </div>
+</main>
+
+<footer>
+  单文件原型：上半段是纯逻辑模块（<code>==CORE==</code> 之间的部分，可整段搬进 <code>src/engine/</code>），下半段是页面外壳，外壳用完即弃。
+</footer>
+
+<script>
+/* ==CORE-START== */
+/* 纯逻辑模块：不碰 DOM、不读全局，只做 (state, action) => state。 */
+
+const K = {
+  HOUR: 60,
+  DAY: 1440,
+  START: 8 * 60,
+
+  /* 经济：保底谋生无门槛、固定收入、可无限重复、必耗时间 */
+  WAGE_PER_HOUR: 40,
+  GATHER_PER_HOUR: 22,
+  MEAL_COST: 10,
+  SLEEP_COST: 20,
+  INN_COST: 60,
+  SALVE_COST: 30,
+  DECOCTION_COST: 60,
+
+  /* 旬结药钱：各病情阶段固定药费，不随财富缩放 */
+  BILL_PERIOD: 10 * 1440,
+  STAGE_BILL: [0, 2400, 2900, 3600],
+
+  /* 决定版：体力（行动预算） */
+  STAMINA_MAX: 100,
+  STAMINA_LOW: 30,
+  STAMINA_CRIT: 10,
+  SLEEP_MINUTES: 480,
+  SLEEP_STAM_PER_HOUR: 10,
+  INN_STAM_PER_HOUR: 13,
+  MEAL_STAMINA: 12,
+  DRAIN: { labor: 6, gather: 5, train: 8, job: 5, visit: 4, rest: 1, meditate: 1 },
+  COLLAPSE_MINUTES: 120,
+  COLLAPSE_RESTORE: 30,
+
+  /* 决定版：生命值（损伤载体，缓慢自愈，不致死） */
+  VITALITY_MAX: 100,
+  VITAL_RECOVER_PER_HOUR: 1,
+  VITAL_REST_PER_HOUR: 3,
+  VITAL_INN_PER_HOUR: 2,
+  VITAL_SALVE: 12,
+  VITAL_DEFEAT_LOSS: 45,
+  VITAL_JOB_FAIL_LOSS: 12,
+  VITAL_FLOOR: 10,
+  VITAL_BANDS: [
+    { at: 15, pay: 0.4,  train: 0.2,  stamCap: -20, noJob: true,  text: "命悬一线" },
+    { at: 35, pay: 0.6,  train: 0.4,  stamCap: 0,   noJob: true,  text: "伤重难支" },
+    { at: 60, pay: 0.85, train: 0.85, stamCap: 0,   noJob: false, text: "带伤" },
+  ],
+
+  /* 决定版：内力（换高报酬机会的资源，不构成日常税） */
+  NEILI_MAX: 100,
+  NEILI_SLEEP_PER_HOUR: 5,
+  NEILI_MEDITATE_PER_HOUR: 12,
+  NEILI_JOB_COST: 15,
+  NEILI_JOB_GATE: 30,
+
+  /* 旧形状双条（对照） */
+  OLD: {
+    hungerWaking: 6.5, hungerAsleep: 2.5, fatigueWaking: 6.5,
+    hungryAt: 70, tiredAt: 70, hungerMult: 0.8, fatigueMult: 0.7, mealRelief: 25,
+  },
+
+  /* 对照：伤势档位式 */
+  WOUND: {
+    "":     { minutes: 0,    pay: 1,    train: 1,    stamCap: 0,   noJob: false, next: "" },
+    "轻伤": { minutes: 240,  pay: 0.85, train: 0.8,  stamCap: 0,   noJob: false, next: "" },
+    "中伤": { minutes: 1440, pay: 0.75, train: 0.5,  stamCap: 0,   noJob: true,  next: "轻伤" },
+    "重伤": { minutes: 2880, pay: 0.5,  train: 0.25, stamCap: -20, noJob: true,  next: "中伤" },
+  },
+  WOUND_RANK: { "": 0, "轻伤": 1, "中伤": 2, "重伤": 3 },
+  SALVE_WOUND_MINUTES: 480,
+
+  /* 对照：伤势数值式 */
+  METER: {
+    natural: 1, rest: 3, salve: 12,
+    bands: [
+      { at: 85, pay: 0.4,  train: 0.2, stamCap: -20, noJob: true,  text: "伤势沉重" },
+      { at: 60, pay: 0.6,  train: 0.4, stamCap: 0,   noJob: true,  text: "伤势不轻" },
+      { at: 30, pay: 0.85, train: 0.7, stamCap: 0,   noJob: false, text: "带伤" },
+    ],
+  },
+
+  /* 对照：病气轴 */
+  MIASTHMA: {
+    rainOutdoorPerHour: 6, flopPerHour: 0.5, innPerHour: 1.5, restPerHour: 3,
+    workMult: 0.85, recoverMult: 0.75, bandAt: 50,
+    collapseAt: 80, collapseMinutes: 1440, collapseRelief: 30, decoctionRelief: 25,
+  },
+
+  RAIN_CHANCE: 0.35,
+  RAIN_WAGE_MULT: 0.9,
+
+  /* 差事：报酬高于保底劳动，需内力、伤生命值 */
+  JOB_MINUTES: 360, JOB_PAY: 300, JOB_FAIL_PAY: 100, JOB_SUCCESS: 0.7,
+  DEFEAT_MED_FEE: 100, DEFEAT_DEBT: 200, DEFEAT_STAMINA: 30,
+};
+
+const PRESETS = {
+  R: { name: "决定版 · 体力 + 生命值 + 内力", axes: { body: "vitality", daily: "single", nei: "on", miasma: "off" },
+       note: "票据决定的身体状态：体力是每日行动预算，生命值是损伤载体（缓慢自愈、不致死），内力是换高报酬差事的资源。饥饿、疲劳、睡眠债、独立伤势档位、病气全部删除。" },
+  A: { name: "对照 A · 只留生命值", axes: { body: "vitality", daily: "off", nei: "off", miasma: "off" },
+       note: "删掉体力和内力，只剩生命值。看“没有每日行动预算”会不会让保底谋生变成无阻力的印钞机。" },
+  B: { name: "对照 B · 生命值 + 体力", axes: { body: "vitality", daily: "single", nei: "off", miasma: "off" },
+       note: "决定版去掉内力：看少一条资源会不会少掉“打坐换差事”这个取舍。" },
+  C: { name: "对照 C · 再加病气", axes: { body: "vitality", daily: "single", nei: "on", miasma: "on" },
+       note: "保留被否掉的病气轴，用来回看它是不是在和生命值重复收同一种税。" },
+  D: { name: "对照 D · 旧形状", axes: { body: "tier", daily: "dual", nei: "off", miasma: "off" },
+       note: "旧饥饿 + 疲劳 + 伤势档位。用来回看当初为什么删掉它们。" },
+  E: { name: "对照 E · 伤势数值化", axes: { body: "meter", daily: "single", nei: "on", miasma: "off" },
+       note: "损伤不用生命值而用 0～100 伤势值，用来回看两者可读性的差别。" },
+};
+const PRESET_ORDER = ["R", "A", "B", "C", "D", "E"];
+
+const ACTIONS = [
+  { id: "labor",     group: "谋生", label: "保底劳动（1 时 · 40 文）", desc: "永远可用" },
+  { id: "gather",    group: "谋生", label: "采集变卖（1 时 · 22 文）" },
+  { id: "job",       group: "差事", label: "接一趟差事（6 时 · 300 文）", desc: "需内力 30，伤生命值" },
+  { id: "train",     group: "习武", label: "练功（1 时）", desc: "收益归 #23" },
+  { id: "meditate",  group: "习武", label: "打坐调息（1 时 · 内力 +12）", desc: "换内力，不耗体力" },
+  { id: "meal",      group: "恢复", label: "吃一顿（半时 · 10 文）" },
+  { id: "sleep",     group: "恢复", label: "通铺睡觉（8 时 · 20 文）" },
+  { id: "inn",       group: "恢复", label: "客栈过夜（8 时 · 60 文）" },
+  { id: "rest",      group: "恢复", label: "休养（1 时 · 加快伤愈）" },
+  { id: "salve",     group: "恢复", label: "买跌打药（20 分 · 30 文）" },
+  { id: "decoction", group: "对照", label: "药铺汤药（20 分 · 60 文）" },
+  { id: "visit",     group: "人情", label: "探母（2 时）" },
+  { id: "defeat",    group: "战斗", label: "模拟战败接回", desc: "取 #5 的后果形状" },
+  { id: "repay",     group: "债务", label: "还欠款" },
+  { id: "paceSoft",  group: "快进", label: "快进到旬结 · 温和节奏", desc: "每日两餐 + 打工 8 时 + 休养" },
+  { id: "paceHard",  group: "快进", label: "快进到旬结 · 极限节奏", desc: "吃睡之外全在打工" },
+];
+
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, v)); }
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+function roll(s) {
+  s.rng.s = (Math.imul(s.rng.s, 1664525) + 1013904223) >>> 0;
+  return s.rng.s / 4294967296;
+}
+function push(s, text) {
+  s.log.unshift({ at: s.clock, text });
+  if (s.log.length > 80) s.log.length = 80;
+}
+function dayOf(minute) { return Math.floor(minute / K.DAY) + 1; }
+function hhmm(minute) {
+  const m = ((minute % K.DAY) + K.DAY) % K.DAY;
+  return String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+}
+function dur(minutes) {
+  const h = Math.floor(minutes / 60), m = Math.round(minutes % 60);
+  return h > 0 ? (m ? h + " 时 " + m + " 分" : h + " 时") : m + " 分";
+}
+function money(n) { return Math.round(n) + " 文"; }
+
+function newState(presetKey, seed) {
+  const p = PRESETS[presetKey] || PRESETS.R;
+  const s = {
+    preset: presetKey,
+    axes: Object.assign({}, p.axes),
+    seed: (seed === undefined ? 20260915 : seed) >>> 0,
+    rng: { s: (seed === undefined ? 20260915 : seed) >>> 0 },
+    clock: K.START,
+    day: 1,
+    weather: {},
+    money: 120,
+    debt: 0,
+    mother: { stage: 1, nextBillMinute: K.BILL_PERIOD, missed: 0 },
+    role: "白身",
+    vitality: K.VITALITY_MAX,
+    neili: K.NEILI_MAX,
+    wound: { tier: "", dueMinute: 0, meter: 0 },
+    daily: { stamina: K.STAMINA_MAX, hunger: 0, fatigue: 0 },
+    miasma: 0,
+    martial: 0,
+    flags: { visits: 0, fights: 0, defeats: 0, collapses: 0, sick: 0, meditations: 0 },
+    log: [],
+  };
+  s.weather[1] = roll(s) < K.RAIN_CHANCE ? "雨" : "晴";
+  push(s, "开局：第 1 日 08:00 · " + s.weather[1] + " · 现金 120 文 · 母亲第 1 期（下次药钱 " + K.STAGE_BILL[1] + " 文，10 日后）");
+  return s;
+}
+
+function bodyLabel(s) {
+  if (s.axes.body === "vitality") {
+    const b = K.VITAL_BANDS.find(function (x) { return s.vitality <= x.at; });
+    return "生命值 " + Math.round(s.vitality) + " / 100" + (b ? "（" + b.text + "）" : "");
+  }
+  if (s.axes.body === "tier") return "伤势 " + (s.wound.tier || "无恙");
+  if (s.axes.body === "meter") return "伤势值 " + Math.round(s.wound.meter) + " / 100";
+  return "（损伤轴未开启）";
+}
+
+function mods(s) {
+  const m = { pay: 1, train: 1, stamCap: K.STAMINA_MAX, noJob: false, notes: [], parts: [] };
+  const part = function (src, pay, train) { m.parts.push({ src: src, pay: pay, train: train }); };
+  if (s.axes.daily === "single") {
+    const v = s.daily.stamina;
+    if (v < K.STAMINA_CRIT) { m.pay *= 0.5; part("体力濒竭", 0.5, 1); m.notes.push("体力濒竭（<" + K.STAMINA_CRIT + "）：只剩轻活，收入减半"); }
+    else if (v < K.STAMINA_LOW) { m.pay *= 0.8; m.train *= 0.8; part("体力低", 0.8, 0.8); m.notes.push("体力低（<" + K.STAMINA_LOW + "）：收入与练功 ×0.8"); }
+  }
+  if (s.axes.daily === "dual") {
+    if (s.daily.hunger >= K.OLD.hungryAt) { m.pay *= K.OLD.hungerMult; m.train *= K.OLD.hungerMult; part("饥饿", K.OLD.hungerMult, K.OLD.hungerMult); m.notes.push("饥饿 ≥" + K.OLD.hungryAt + "：收入与练功 ×" + K.OLD.hungerMult); }
+    if (s.daily.fatigue >= K.OLD.tiredAt) { m.pay *= K.OLD.fatigueMult; m.train *= K.OLD.fatigueMult; part("疲劳", K.OLD.fatigueMult, K.OLD.fatigueMult); m.notes.push("疲劳 ≥" + K.OLD.tiredAt + "：收入与练功 ×" + K.OLD.fatigueMult); }
+  }
+  if (s.axes.body === "vitality") {
+    const b = K.VITAL_BANDS.find(function (x) { return s.vitality <= x.at; });
+    if (b) {
+      m.pay *= b.pay; m.train *= b.train; m.stamCap += b.stamCap; m.noJob = m.noJob || b.noJob;
+      part("生命值 " + Math.round(s.vitality), b.pay, b.train);
+      m.notes.push(b.text + "（生命值 " + Math.round(s.vitality) + "）：收入 ×" + b.pay + "、练功 ×" + b.train + (b.noJob ? "、不可接差" : "") + (b.stamCap ? "、体力上限 " + b.stamCap : ""));
+    }
+  } else if (s.axes.body === "tier") {
+    const t = K.WOUND[s.wound.tier];
+    if (t && t.minutes > 0) {
+      m.pay *= t.pay; m.train *= t.train; m.stamCap += t.stamCap; m.noJob = m.noJob || t.noJob;
+      part("伤势 " + s.wound.tier, t.pay, t.train);
+      m.notes.push(s.wound.tier + "：收入 ×" + t.pay + "、练功 ×" + t.train + (t.noJob ? "、不可接差" : "") + (t.stamCap ? "、体力上限 " + t.stamCap : ""));
+    }
+  } else if (s.axes.body === "meter") {
+    const b = K.METER.bands.find(function (x) { return s.wound.meter >= x.at; });
+    if (b) {
+      m.pay *= b.pay; m.train *= b.train; m.stamCap += b.stamCap; m.noJob = m.noJob || b.noJob;
+      part("伤势 " + Math.round(s.wound.meter), b.pay, b.train);
+      m.notes.push(b.text + "（" + Math.round(s.wound.meter) + "）：收入 ×" + b.pay + "、练功 ×" + b.train + (b.noJob ? "、不可接差" : "") + (b.stamCap ? "、体力上限 " + b.stamCap : ""));
+    }
+  }
+  if (s.axes.miasma === "on" && s.miasma >= K.MIASTHMA.bandAt) {
+    m.pay *= K.MIASTHMA.workMult; m.train *= K.MIASTHMA.workMult;
+    part("病气 " + Math.round(s.miasma), K.MIASTHMA.workMult, K.MIASTHMA.workMult);
+    m.notes.push("病气 " + Math.round(s.miasma) + "：收入与练功 ×" + K.MIASTHMA.workMult + "、恢复 ×" + K.MIASTHMA.recoverMult);
+  }
+  return m;
+}
+function staminaCap(s) { return mods(s).stamCap; }
+function isRain(s) { return s.weather[s.day] === "雨"; }
+
+function rollDays(s, from, to) {
+  const d0 = dayOf(from), d1 = dayOf(to);
+  for (let d = d0 + 1; d <= d1; d++) {
+    s.day = d;
+    if (!s.weather[d]) s.weather[d] = roll(s) < K.RAIN_CHANCE ? "雨" : "晴";
+    push(s, "第 " + d + " 日 · " + s.weather[d]);
+  }
+}
+
+function tickTierWound(s, minutes) {
+  if (s.axes.body !== "tier" || !s.wound.tier) return;
+  s.wound.dueMinute -= minutes;
+  while (s.wound.tier && s.wound.dueMinute <= 0) {
+    const next = K.WOUND[s.wound.tier].next;
+    if (!next) { push(s, s.wound.tier + "已痊愈"); s.wound.tier = ""; s.wound.dueMinute = 0; return; }
+    push(s, "伤势好转一档：" + s.wound.tier + " → " + next);
+    s.wound.tier = next;
+    s.wound.dueMinute = K.WOUND[next].minutes;
+  }
+}
+
+function settleBill(s) {
+  const amount = K.STAGE_BILL[s.mother.stage];
+  if (s.money >= amount) {
+    s.money -= amount;
+    push(s, "旬结药钱 " + amount + " 文已付，母亲第 " + s.mother.stage + " 期稳住");
+  } else {
+    const short = amount - s.money;
+    s.money = 0; s.debt += short; s.mother.missed++;
+    if (s.mother.stage < 3) s.mother.stage++;
+    push(s, "旬结药钱差 " + Math.round(short) + " 文 → 欠款累加（无复利，共 " + Math.round(s.debt) + " 文）、病情恶化到第 " + s.mother.stage + " 期（药费 " + K.STAGE_BILL[s.mother.stage] + " 文）");
+  }
+  s.mother.nextBillMinute += K.BILL_PERIOD;
+}
+
+/* 时间推进：小步 60 分钟，逐项结算状态与定时事项。ctx 描述这段活动本身。 */
+function advance(s, minutes, ctx) {
+  ctx = ctx || {};
+  const drain = ctx.staminaPerHour || 0;
+  let left = minutes;
+  while (left > 0) {
+    const step = Math.min(60, left);
+    left -= step;
+    const h = step / 60;
+    const before = s.clock;
+    s.clock += step;
+
+    if (s.axes.daily === "single" && drain !== 0) {
+      let d = drain * h;
+      if (d > 0 && s.axes.miasma === "on" && s.miasma >= K.MIASTHMA.bandAt) d *= K.MIASTHMA.recoverMult;
+      const cap = staminaCap(s);
+      s.daily.stamina = clamp(s.daily.stamina + d, 0, cap);
+      if (drain < 0 && s.daily.stamina <= 0) {
+        s.clock += K.COLLAPSE_MINUTES;
+        s.daily.stamina = K.COLLAPSE_RESTORE;
+        s.flags.collapses++;
+        push(s, "体力见底，就地歇倒 " + (K.COLLAPSE_MINUTES / 60) + " 时辰（只损失时间）");
+      }
+    }
+    if (s.axes.daily === "dual") {
+      s.daily.hunger = clamp(s.daily.hunger + (ctx.asleep ? K.OLD.hungerAsleep : K.OLD.hungerWaking) * h, 0, 100);
+      if (!ctx.asleep) s.daily.fatigue = clamp(s.daily.fatigue + K.OLD.fatigueWaking * h, 0, 100);
+    }
+    if (s.axes.body === "tier") tickTierWound(s, step);
+    if (s.axes.body === "meter") {
+      const rate = ctx.rest ? K.METER.rest : K.METER.natural;
+      s.wound.meter = clamp(s.wound.meter - rate * h, 0, 100);
+    }
+    if (s.axes.body === "vitality") {
+      const rate = ctx.kind === "rest" ? K.VITAL_REST_PER_HOUR : (ctx.kind === "sleep-inn" ? K.VITAL_INN_PER_HOUR : K.VITAL_RECOVER_PER_HOUR);
+      s.vitality = clamp(s.vitality + rate * h, 0, K.VITALITY_MAX);
+    }
+    if (s.axes.nei === "on") {
+      const per = ctx.kind === "meditate" ? K.NEILI_MEDITATE_PER_HOUR : (ctx.asleep ? K.NEILI_SLEEP_PER_HOUR : 0);
+      if (per) s.neili = clamp(s.neili + per * h, 0, K.NEILI_MAX);
+    }
+    if (s.axes.miasma === "on") {
+      let perHour = 0;
+      if (ctx.kind === "sleep-flop") perHour = K.MIASTHMA.flopPerHour;
+      else if (ctx.kind === "sleep-inn") perHour = -K.MIASTHMA.innPerHour;
+      else if (ctx.kind === "rest") perHour = -K.MIASTHMA.restPerHour;
+      else if (ctx.outdoor && isRain(s)) perHour = K.MIASTHMA.rainOutdoorPerHour;
+      s.miasma = clamp(s.miasma + perHour * h, 0, 100);
+      if (!ctx.rest && s.miasma >= K.MIASTHMA.collapseAt) {
+        s.miasma -= K.MIASTHMA.collapseRelief;
+        s.clock += K.MIASTHMA.collapseMinutes;
+        s.flags.sick++;
+        if (s.axes.daily === "single") s.daily.stamina = staminaCap(s);
+        push(s, "寒病发作：卧床 1 日，病气退到 " + Math.round(s.miasma) + "（不致死）");
+      }
+    }
+    while (s.clock >= s.mother.nextBillMinute) settleBill(s);
+    rollDays(s, before, s.clock);
+  }
+}
+
+function woundApply(s, tier, meterAmount) {
+  if (s.axes.body === "vitality") {
+    const loss = tier === "重伤" ? K.VITAL_DEFEAT_LOSS : (tier === "中伤" ? 25 : K.VITAL_JOB_FAIL_LOSS);
+    const before = s.vitality;
+    if (s.vitality - loss <= 0) {
+      s.vitality = K.VITAL_FLOOR;
+      s.clock += K.DAY;
+      rollDays(s, s.clock - K.DAY, s.clock);
+      push(s, "生命值见底，被人抬回（不死亡）：卧床 1 日，生命值回到 " + K.VITAL_FLOOR);
+    } else {
+      s.vitality = clamp(s.vitality - loss, 0, K.VITALITY_MAX);
+    }
+    push(s, "生命值 " + Math.round(before) + " → " + Math.round(s.vitality) + "（自愈约 +1/时，休养 +3/时）");
+  } else if (s.axes.body === "tier") {
+    const cur = s.wound.tier || "";
+    if (K.WOUND_RANK[tier] >= K.WOUND_RANK[cur]) {
+      s.wound.tier = tier;
+      s.wound.dueMinute = K.WOUND[tier].minutes;
+      push(s, "落下" + tier + "（预计 " + dur(K.WOUND[tier].minutes) + " 内好转；单槽，不叠成多条）");
+    } else {
+      s.wound.dueMinute = Math.max(s.wound.dueMinute, K.WOUND[tier].minutes);
+      push(s, "已有" + cur + "更重，旧伤不再叠加");
+    }
+  } else if (s.axes.body === "meter") {
+    s.wound.meter = clamp(s.wound.meter + meterAmount, 0, 100);
+    push(s, "伤势值 +" + meterAmount + " → " + Math.round(s.wound.meter));
+  }
+}
+
+/* 快进：按固定节奏过到下一次旬结，只用来读「保底节奏能不能覆盖药钱」。
+   温和 = 每天打工 8 时、其余休养；极限 = 吃睡之外全在打工。 */
+function paceRun(s, mode) {
+  const target = s.mother.nextBillMinute;
+  const count = { labor: 0, rest: 0, meal: 0, sleep: 0, days: 0 };
+  let guard = 0, lastMealKey = null, laborDay = 0, laborToday = 0;
+  while (s.clock <= target && guard < 3000) {
+    guard++;
+    const off = availability(s);
+    if (off.labor) break;
+    const h = ((s.clock % K.DAY) + K.DAY) % K.DAY;
+    const day = dayOf(s.clock);
+    if (day !== laborDay) { laborDay = day; laborToday = 0; }
+    if (h >= 22 * 60 || h < 6 * 60) { if (off.sleep) break; s = apply(s, "sleep"); count.sleep++; continue; }
+    const mealKey = h < 12 * 60 ? day + "-早" : (h >= 17 * 60 ? day + "-晚" : null);
+    if (mealKey && lastMealKey !== mealKey && !off.meal) {
+      s = apply(s, "meal"); count.meal++; lastMealKey = mealKey; continue;
+    }
+    if (mode === "hard" || laborToday < 8) {
+      s = apply(s, "labor"); count.labor++; laborToday++;
+    } else {
+      s = apply(s, "rest"); count.rest++;
+    }
+  }
+  count.days = dayOf(s.clock) - dayOf(K.START) + 1;
+  return { s: s, count: count };
+}
+
+function availability(s) {
+  const m = mods(s);
+  const crit = s.axes.daily === "single" && s.daily.stamina < K.STAMINA_CRIT;
+  const off = {};
+  const need = function (n) { return s.money < n; };
+  if (need(K.MEAL_COST)) off.meal = "现金不足 " + K.MEAL_COST + " 文";
+  if (need(K.SLEEP_COST)) off.sleep = "现金不足 " + K.SLEEP_COST + " 文";
+  if (need(K.INN_COST)) off.inn = "现金不足 " + K.INN_COST + " 文";
+  if (need(K.SALVE_COST)) off.salve = "现金不足 " + K.SALVE_COST + " 文";
+  if (s.axes.miasma !== "on") off.decoction = "病气轴未开启（对照项）";
+  else if (need(K.DECOCTION_COST)) off.decoction = "现金不足 " + K.DECOCTION_COST + " 文";
+  if (s.axes.nei !== "on") off.meditate = "内力轴未开启（对照项）";
+  if (m.noJob) off.job = "当前损伤过重不可接差：" + bodyLabel(s);
+  else if (s.axes.nei === "on" && s.neili < K.NEILI_JOB_GATE) off.job = "内力不足 " + K.NEILI_JOB_GATE + "，先打坐调息";
+  if (s.debt <= 0) off.repay = "当前无欠款";
+  if (crit) ["gather", "job", "train", "visit", "meditate"].forEach(function (id) { off[id] = "体力濒竭，只能做轻活"; });
+  return off;
+}
+
+function apply(s, id) {
+  s = clone(s);
+  const m = mods(s);
+  const rain = isRain(s);
+  switch (id) {
+    case "labor": {
+      let pay = K.WAGE_PER_HOUR * m.pay * (rain ? K.RAIN_WAGE_MULT : 1);
+      s.money += pay;
+      advance(s, 60, { staminaPerHour: -K.DRAIN.labor, outdoor: true });
+      push(s, "保底劳动 1 时，得 " + money(pay) + (rain ? "（雨天活儿少）" : ""));
+      break;
+    }
+    case "gather": {
+      const pay = K.GATHER_PER_HOUR * m.pay;
+      s.money += pay;
+      advance(s, 60, { staminaPerHour: -K.DRAIN.gather, outdoor: true });
+      push(s, "采集变卖 1 时，得 " + money(pay));
+      break;
+    }
+    case "job": {
+      advance(s, K.JOB_MINUTES, { staminaPerHour: -K.DRAIN.job, outdoor: true });
+      s.flags.fights++;
+      if (s.axes.nei === "on") s.neili = clamp(s.neili - K.NEILI_JOB_COST, 0, K.NEILI_MAX);
+      if (roll(s) < K.JOB_SUCCESS) {
+        s.money += K.JOB_PAY;
+        push(s, "差事办成，得 " + money(K.JOB_PAY) + (s.axes.nei === "on" ? "（耗内力 " + K.NEILI_JOB_COST + "）" : ""));
+      } else {
+        s.flags.defeats++;
+        s.money += K.JOB_FAIL_PAY;
+        woundApply(s, "轻伤", 12);
+        push(s, "差事失手：只拿到 " + money(K.JOB_FAIL_PAY) + "，还带了伤");
+      }
+      break;
+    }
+    case "train": {
+      const gain = 4 * m.train;
+      s.martial = Math.min(100, s.martial + gain);
+      advance(s, 60, { staminaPerHour: -K.DRAIN.train });
+      push(s, "练功 1 时，门类基本功 +" + gain.toFixed(1) + "（成长收益归 #23）");
+      break;
+    }
+    case "meditate": {
+      s.flags.meditations++;
+      advance(s, 60, { staminaPerHour: -K.DRAIN.meditate, kind: "meditate" });
+      push(s, "打坐调息 1 时，内力 +" + K.NEILI_MEDITATE_PER_HOUR + "（不耗体力，但占时间）");
+      break;
+    }
+    case "meal": {
+      s.money -= K.MEAL_COST;
+      if (s.axes.daily === "single") s.daily.stamina = clamp(s.daily.stamina + K.MEAL_STAMINA, 0, staminaCap(s));
+      if (s.axes.daily === "dual") s.daily.hunger = clamp(s.daily.hunger - K.OLD.mealRelief, 0, 100);
+      advance(s, 30, {});
+      push(s, "吃了一顿，" + money(K.MEAL_COST) + " · 体力 +" + K.MEAL_STAMINA);
+      break;
+    }
+    case "sleep": {
+      s.money -= K.SLEEP_COST;
+      if (s.axes.daily === "dual") s.daily.fatigue = 0;
+      advance(s, K.SLEEP_MINUTES, { staminaPerHour: K.SLEEP_STAM_PER_HOUR, asleep: true, kind: "sleep-flop" });
+      push(s, "通铺睡了一夜，" + money(K.SLEEP_COST));
+      break;
+    }
+    case "inn": {
+      s.money -= K.INN_COST;
+      if (s.axes.daily === "dual") s.daily.fatigue = 0;
+      advance(s, K.SLEEP_MINUTES, { staminaPerHour: K.INN_STAM_PER_HOUR, asleep: true, kind: "sleep-inn" });
+      push(s, "客栈过夜，" + money(K.INN_COST) + " · 恢复更足、压病气");
+      break;
+    }
+    case "rest": {
+      advance(s, 60, { staminaPerHour: -K.DRAIN.rest, rest: true, kind: "rest" });
+      push(s, "休养 1 时（不耗体力；生命值轴下自愈加快）");
+      break;
+    }
+    case "salve": {
+      s.money -= K.SALVE_COST;
+      if (s.axes.body === "vitality") s.vitality = clamp(s.vitality + K.VITAL_SALVE, 0, K.VITALITY_MAX);
+      if (s.axes.body === "tier" && s.wound.tier) tickTierWound(s, K.SALVE_WOUND_MINUTES);
+      if (s.axes.body === "meter") s.wound.meter = clamp(s.wound.meter - K.METER.salve, 0, 100);
+      advance(s, 20, {});
+      push(s, "买了跌打药，" + money(K.SALVE_COST));
+      break;
+    }
+    case "decoction": {
+      s.money -= K.DECOCTION_COST;
+      s.miasma = clamp(s.miasma - K.MIASTHMA.decoctionRelief, 0, 100);
+      advance(s, 20, {});
+      push(s, "药铺汤药，" + money(K.DECOCTION_COST) + " · 病气 -" + K.MIASTHMA.decoctionRelief);
+      break;
+    }
+    case "visit": {
+      s.flags.visits++;
+      advance(s, 120, { staminaPerHour: -K.DRAIN.visit, outdoor: true });
+      push(s, "回村探母（第 " + s.flags.visits + " 次）；病情与药钱节点由手写剧情推动（#18）");
+      break;
+    }
+    case "defeat": {
+      s.flags.defeats++;
+      woundApply(s, "重伤", 45);
+      s.money = Math.max(0, s.money - K.DEFEAT_MED_FEE);
+      s.debt += K.DEFEAT_DEBT;
+      if (s.axes.daily === "single") s.daily.stamina = clamp(s.daily.stamina - K.DEFEAT_STAMINA, 0, staminaCap(s));
+      if (s.axes.nei === "on") s.neili = 0;
+      advance(s, 60, {});
+      push(s, "战败接回（不死亡）：生命值重伤 + 医药 " + K.DEFEAT_MED_FEE + " 文 + 债务 " + K.DEFEAT_DEBT + " 文" + (s.axes.nei === "on" ? " + 内力见底" : "") + "。战斗结算细节归 #23，此处只取后果形状");
+      break;
+    }
+    case "repay": {
+      const pay = Math.min(s.money, s.debt);
+      s.money -= pay; s.debt -= pay;
+      if (s.debt <= 0 && s.mother.stage > 1) { s.mother.stage--; push(s, "欠款还清，母亲病情好转到第 " + s.mother.stage + " 期（药费 " + K.STAGE_BILL[s.mother.stage] + " 文）"); }
+      push(s, "还欠款 " + money(pay) + "，余 " + money(s.debt));
+      break;
+    }
+    case "paceSoft":
+    case "paceHard": {
+      const mode = id === "paceHard" ? "hard" : "soft";
+      const before = { money: s.money, debt: s.debt, stage: s.mother.stage, clock: s.clock };
+      const r = paceRun(s, mode);
+      const c = r.count;
+      s = r.s;
+      push(s, (mode === "hard" ? "快进【极限节奏】" : "快进【温和节奏】") + "：过了 " + c.days + " 日（打工 " + c.labor + " 时 · 休养 " + c.rest + " 时 · 吃饭 " + c.meal + " 次 · 睡觉 " + c.sleep + " 夜），现金 " + money(before.money) + " → " + money(s.money) + "，欠款 " + money(s.debt) + "，病情第 " + s.mother.stage + " 期");
+      break;
+    }
+    default:
+      return s;
+  }
+  s.money = Math.max(0, s.money);
+  return s;
+}
+
+/* 判据：压力是否可读、失败是否可恢复。全是派生值，不写状态。 */
+function metrics(s) {
+  const m = mods(s);
+  const bill = K.STAGE_BILL[s.mother.stage];
+  const hoursToBill = (s.mother.nextBillMinute - s.clock) / 60;
+  const wageNet = K.WAGE_PER_HOUR * m.pay * (isRain(s) ? K.RAIN_WAGE_MULT : 1);
+  const rigidCash = K.MEAL_COST * 2 + K.SLEEP_COST + bill / 10;
+  const rigidHours = wageNet > 0 ? rigidCash / wageNet : Infinity;
+  const awakeHours = 24 - K.SLEEP_MINUTES / 60;
+  const mealsHours = 1;
+  const laborableHours = awakeHours - mealsHours;
+  const billHours = wageNet > 0 ? bill / 10 / wageNet : Infinity;
+  const floorNetPerDay = wageNet * laborableHours - rigidCash;
+  const need = Math.max(0, bill - s.money) + s.debt;
+  const hoursNeeded = wageNet > 0 ? need / wageNet : Infinity;
+  const single = s.axes.daily === "single";
+  const dailyStamIn = single ? (K.SLEEP_MINUTES / 60) * K.SLEEP_STAM_PER_HOUR + K.MEAL_STAMINA * 2 : null;
+  const freeHours = Math.max(0, laborableHours - billHours);
+  const maxDayDrain = single ? K.DRAIN.labor * billHours + K.DRAIN.train * freeHours : null;
+  const stamBuffer = single ? dailyStamIn - maxDayDrain : null;
+  const hardNet = wageNet * laborableHours - rigidCash;
+  const softNet = wageNet * 8 - rigidCash;
+  const neiPerDay = K.NEILI_SLEEP_PER_HOUR * (K.SLEEP_MINUTES / 60);
+  return {
+    mods: m, bill: bill, hoursToBill: hoursToBill, wageNet: wageNet,
+    rigidCash: rigidCash, rigidHours: rigidHours, laborableHours: laborableHours,
+    billHours: billHours, floorNetPerDay: floorNetPerDay, need: need,
+    hoursNeeded: hoursNeeded, dailyStamIn: dailyStamIn, maxDayDrain: maxDayDrain,
+    stamBuffer: stamBuffer, freeHours: freeHours,
+    hardNet: hardNet, softNet: softNet,
+    neiPerDay: neiPerDay, neiJobsPerDay: neiPerDay / K.NEILI_JOB_COST,
+    neiJobsNow: (s.neili - 0) / K.NEILI_JOB_COST,
+  };
+}
+
+function softLockReport(s) {
+  const mt = metrics(s);
+  const off = availability(s);
+  const open = ACTIONS.filter(function (a) { return !off[a.id]; });
+  const problems = [];
+  if (open.length === 0) problems.push("可选行动集为空");
+  if (mt.wageNet <= 0) problems.push("保底劳动收入为 0");
+  if (mt.hoursNeeded > mt.hoursToBill) {
+    problems.push("本期保底线补不上药钱缺口（需 " + mt.hoursNeeded.toFixed(1) + " 时劳动，只剩 " + mt.hoursToBill.toFixed(1) + " 时）→ 会走欠款累加与病情恶化，但不死档；出路是差事收益、借贷或手写剧情");
+  }
+  return { open: open.length, problems: problems };
+}
+
+/* ==CORE-END== */
+
+/* ================= 页面外壳（throwaway，用完即弃） ================= */
+(function () {
+  var state = newState("R");
+  var scenarioIndex = 0;
+  var stepIndex = 0;
+  var tuneMeta = [
+    { key: "WAGE_PER_HOUR", label: "保底时薪（文/时）", min: 20, max: 80, step: 5 },
+    { key: "STAGE_BILL", label: "第 1 期旬结药钱（文）", min: 800, max: 4000, step: 100, stage: 1 },
+    { key: "SLEEP_STAM_PER_HOUR", label: "睡眠体力恢复（每时）", min: 6, max: 16, step: 1 },
+  ];
+
+  var SCENARIOS = [
+    {
+      key: "谷底开局",
+      blurb: "生命值 30（伤重难支）、体力 35、欠款 900、0 文。看三条资源里最低谷的状态能不能爬起来：这是「失败可恢复」的最低验收。",
+      setup: function (s) {
+        s = clone(s); s.money = 0; s.debt = 900; s.daily.stamina = 35; s.vitality = 30;
+        return s;
+      },
+      steps: ["labor", "labor", "meal", "labor", "rest", "rest", "labor", "sleep", "labor"],
+    },
+    {
+      key: "体力预算的天花板",
+      blurb: "决定版没有饥饿和疲劳，只有体力这一条每日行动预算。把一天排满练功，看体力是不是会先咬人：会咬的是硬预算，不咬的就是纯装饰。注意右侧「每日本收支」与「谁先咬」。",
+      preset: "R",
+      steps: ["train", "train", "train", "train", "train", "train", "train", "train", "train", "labor"],
+    },
+    {
+      key: "内力值不值",
+      blurb: "差事每时 50 文（高于保底劳动的 40），但要 6 时、耗 15 内力、还可能掉生命值。原型的读数是：睡觉每夜回 40 内力，够 2.7 趟差事，而一天本来也只排得下 2～3 趟——所以内力多数时候不咬人，只在「把差事排满」或战斗耗内力（归 #23）时才逼你打坐。本走查把内力压到 20，看门槛如何卡住差事、打坐又如何把它换回来。",
+      preset: "R",
+      setup: function (s) { s = clone(s); s.neili = 20; return s; },
+      steps: ["meditate", "meditate", "job", "rest", "rest", "sleep"],
+    },
+    {
+      key: "战败接回",
+      blurb: "先接一趟差事，再吃一次大败：看生命值从 100 掉到 55 档位（带伤）如何吃掉收入与练功效率，内力同时见底、差事门槛被卡住。要观察的是「有痛感但不死档」——欠款累加、病情恶化，然后靠休养与打坐慢慢爬回来。",
+      preset: "R",
+      steps: ["job", "defeat", "salve", "rest", "rest", "rest", "meditate", "rest", "sleep", "labor", "labor"],
+    },
+    {
+      key: "旬结药钱那一天",
+      blurb: "决定版最该验的衔接：光靠保底谋生，能不能覆盖旬结药钱？先跑温和节奏（每天打工 8 时，其余休养），再跑极限节奏（吃睡之外全在打工）。要看两件事：① 温和节奏付得起药钱；② 极限节奏的余量大到什么程度——若「无脑打工」的收益明显压过练功与差事，保底谋生就从兜底变成了最优解，取舍会死掉。",
+      preset: "R",
+      steps: ["paceSoft", "paceHard"],
+    },
+    {
+      key: "对照 D · 旧形状",
+      blurb: "回看被删掉的旧设计：饥饿 + 疲劳 + 伤势档位三条一起上，连着打工不放。两条日常轴同速率同时触顶（饥饿与疲劳各 +6.5/时），收入被同一种「维护税」扣两次——这就是删它们的理由。",
+      preset: "D",
+      steps: ["labor", "labor", "labor", "labor", "labor", "labor", "labor", "labor", "labor", "labor", "labor", "labor"],
+    },
+    {
+      key: "对照 C · 病气轴",
+      blurb: "回看被否掉的第三条环境轴：切到 C，在雨天里干活、睡通铺、不休息，把病气推过 50。看判据里的「惩罚叠乘」——病气的惩罚形状和生命值完全一样（收入与练功 ×系数），属于重复收税。",
+      preset: "C",
+      setup: function (s) {
+        s = clone(s);
+        s.weather[1] = "雨"; s.weather[2] = "雨"; s.weather[3] = "雨"; s.weather[4] = "雨"; s.weather[5] = "雨";
+        return s;
+      },
+      steps: ["labor", "labor", "gather", "labor", "labor", "labor", "labor", "labor", "labor", "labor", "sleep"],
+    },
+    {
+      key: "对照 E · 伤势数值化",
+      blurb: "回看损伤的另一种记法：切到 E（伤势 0～100），连吃两次大败，看 30/60/85 三档如何平滑爬升又缓慢回落。对比决定版的「生命值 + 文字档位」，可读性差在哪一眼就能看出。",
+      preset: "E",
+      steps: ["job", "defeat", "defeat", "rest", "rest", "rest"],
+    },
+  ];
+
+  function el(id) { return document.getElementById(id); }
+
+  function render() {
+    renderPresets();
+    renderAxes();
+    renderState();
+    renderMetrics();
+    renderActions();
+    renderRules();
+    renderTabs();
+    renderScenario();
+    renderTune();
+    renderLog();
+  }
+
+  function renderPresets() {
+    var box = el("presets");
+    box.innerHTML = "";
+    PRESET_ORDER.forEach(function (k) {
+      var p = PRESETS[k];
+      var b = document.createElement("button");
+      b.textContent = p.name;
+      if (state.preset === k) b.className = "on";
+      b.onclick = function () { state = newState(k, state.seed); stepIndex = 0; render(); };
+      box.appendChild(b);
+    });
+    el("preset-note").textContent = PRESETS[state.preset].note;
+  }
+
+  function renderAxes() {
+    var box = el("axis-toggles");
+    box.innerHTML = "";
+    [["body", "损伤轴", [["vitality", "生命值（决定版）"], ["tier", "伤势档位（旧）"], ["meter", "伤势数值"]]],
+     ["daily", "体力轴", [["single", "开（决定版）"], ["off", "关"], ["dual", "旧饥饿 + 疲劳"]]],
+     ["nei", "内力轴", [["on", "开（决定版）"], ["off", "关"]]],
+     ["miasma", "病气轴", [["off", "关（决定版）"], ["on", "开（已否）"]]]
+    ].forEach(function (row) {
+      var label = document.createElement("label");
+      var span = document.createElement("span");
+      span.textContent = row[1] + "：";
+      var sel = document.createElement("select");
+      row[2].forEach(function (o) {
+        var op = document.createElement("option");
+        op.value = o[0]; op.textContent = o[1];
+        if (state.axes[row[0]] === o[0]) op.selected = true;
+        sel.appendChild(op);
+      });
+      sel.onchange = function () {
+        state.axes[row[0]] = sel.value;
+        state = clone(state);
+        state.miasma = 0;
+        state.vitality = K.VITALITY_MAX;
+        state.neili = K.NEILI_MAX;
+        state.wound.tier = ""; state.wound.dueMinute = 0; state.wound.meter = 0;
+        state.daily.stamina = K.STAMINA_MAX;
+        state.daily.hunger = 0; state.daily.fatigue = 0;
+        render();
+      };
+      label.appendChild(span); label.appendChild(sel);
+      box.appendChild(label);
+    });
+  }
+
+  function kv(parent, k, v) {
+    var d = document.createElement("div");
+    d.className = "kv";
+    var a = document.createElement("span"); a.textContent = k;
+    var b = document.createElement("b"); b.textContent = v;
+    d.appendChild(a); d.appendChild(b);
+    parent.appendChild(d);
+  }
+
+  function renderState() {
+    var box = el("state-panel");
+    box.innerHTML = "";
+    var mt = metrics(state);
+    kv(box, "时刻", "第 " + state.day + " 日 " + hhmm(state.clock) + " · " + (state.weather[state.day] || "晴"));
+    kv(box, "现金 / 欠款", money(state.money) + " / " + money(state.debt));
+    kv(box, "母亲病情", "第 " + state.mother.stage + " 期 · 下次药钱 " + money(mt.bill) + "（还有 " + dur(Math.max(0, state.mother.nextBillMinute - state.clock)) + "）");
+    if (state.axes.body === "vitality") kv(box, "生命值", Math.round(state.vitality) + " / 100" + (mt.mods.parts.some(function (p) { return p.src.indexOf("生命值") === 0; }) ? "" : "（无恙）"));
+    else kv(box, "损伤", bodyLabel(state) + (state.axes.body === "tier" && state.wound.tier ? "（还有 " + dur(Math.max(0, state.wound.dueMinute)) + "）" : ""));
+    if (state.axes.daily === "single") kv(box, "体力", Math.round(state.daily.stamina) + " / " + staminaCap(state));
+    if (state.axes.daily === "dual") kv(box, "饥饿 / 疲劳", Math.round(state.daily.hunger) + " / " + Math.round(state.daily.fatigue));
+    if (state.axes.nei === "on") kv(box, "内力", Math.round(state.neili) + " / 100（差事门槛 " + K.NEILI_JOB_GATE + "，每趟耗 " + K.NEILI_JOB_COST + "）");
+    if (state.axes.miasma === "on") kv(box, "病气", Math.round(state.miasma) + " / 100");
+    kv(box, "门类基本功", Math.round(state.martial) + " / 100（收益归 #23）");
+
+    var tags = el("state-tags");
+    tags.innerHTML = "";
+    if (mt.mods.notes.length === 0) {
+      var t0 = document.createElement("span"); t0.className = "tag ok"; t0.textContent = "当前无资源惩罚";
+      tags.appendChild(t0);
+    }
+    mt.mods.notes.forEach(function (n) {
+      var t = document.createElement("span"); t.className = "tag warn"; t.textContent = n;
+      tags.appendChild(t);
+    });
+    var t2 = document.createElement("span"); t2.className = "tag"; t2.textContent = "收入 ×" + mt.mods.pay.toFixed(2);
+    var t3 = document.createElement("span"); t3.className = "tag"; t3.textContent = "练功 ×" + mt.mods.train.toFixed(2);
+    var t4 = document.createElement("span"); t4.className = "tag"; t4.textContent = mt.mods.noJob ? "不可接差" : "可接差";
+    tags.appendChild(t2); tags.appendChild(t3); tags.appendChild(t4);
+  }
+
+  function renderMetrics() {
+    var box = el("metrics");
+    box.innerHTML = "";
+    var mt = metrics(state);
+    var single = state.axes.daily === "single";
+    kv(box, "保底劳动净收入", mt.wageNet.toFixed(1) + " 文/时" + (isRain(state) ? "（雨天）" : ""));
+    kv(box, "每日刚性支出", money(mt.rigidCash) + "（两餐 + 通铺 + 药钱摊）");
+    kv(box, "折算劳动", mt.rigidHours.toFixed(1) + " 时/日");
+    kv(box, "醒时可劳动", mt.laborableHours.toFixed(1) + " 时/日");
+    kv(box, "药钱占保底时数", mt.billHours.toFixed(1) + " / " + mt.laborableHours.toFixed(1) + " 时 = " + (mt.billHours / mt.laborableHours * 100).toFixed(0) + "%");
+    kv(box, "保底线净余", money(mt.floorNetPerDay) + "/日（全部时间都用来劳动的极端）");
+    kv(box, "极限打工 vs 温和节奏", money(mt.hardNet) + " / " + money(mt.softNet) + " 文每日净结余（" + (mt.softNet > 0 ? (mt.hardNet / mt.softNet).toFixed(1) + " 倍" : "温和节奏为负") + "）");
+    kv(box, "温和节奏容错", mt.wageNet * 8 > 0
+      ? money(mt.softNet) + " 文/日 = 收入的 " + (mt.softNet / (mt.wageNet * 8) * 100).toFixed(1) + "%（效率惩罚一旦超过这个百分比，温和节奏就变成负结余）"
+      : "已为负结余");
+    kv(box, "覆盖本期药钱需", mt.hoursNeeded.toFixed(1) + " 时劳动，剩 " + mt.hoursToBill.toFixed(1) + " 时");
+    kv(box, "每日本收支", single ? ("体力 +" + mt.dailyStamIn.toFixed(0) + " / 极端日耗 " + mt.maxDayDrain.toFixed(0) + " → 缓冲 " + mt.stamBuffer.toFixed(0)) : "（体力轴未开启）");
+    if (state.axes.nei === "on") kv(box, "内力账", "睡觉 +" + mt.neiPerDay.toFixed(0) + "/夜 · 打坐 +" + K.NEILI_MEDITATE_PER_HOUR + "/时 → 每夜可支撑约 " + mt.neiJobsPerDay.toFixed(1) + " 趟差事（当前存量可接 " + Math.floor(Math.max(0, state.neili) / K.NEILI_JOB_COST) + " 趟）");
+    var who = "时间";
+    if (state.axes.daily === "single" && mt.stamBuffer < 0) who = "体力";
+    kv(box, "谁先咬", who + "（时间预算是每日 " + mt.laborableHours.toFixed(1) + " 时可劳动）");
+    var parts = mt.mods.parts;
+    var stack = parts.length === 0 ? "无状态惩罚" :
+      parts.map(function (p) { return p.src + " ×" + p.pay.toFixed(2); }).join(" · ") + " → 合计 ×" + mt.mods.pay.toFixed(2);
+    if (parts.length > 1 && mt.mods.pay < 0.5) stack += "（叠乘过深：玩家难归因，是「压力不可读」的典型来源）";
+    kv(box, "惩罚叠乘", stack);
+
+    var rep = softLockReport(state);
+    var box2 = el("softlock");
+    var extra = "";
+    if (mt.hardNet > 0 && mt.softNet > 0 && mt.hardNet / mt.softNet > 3) {
+      extra = "<br>· 支配度警告：极限打工的净结余是温和节奏的 " + (mt.hardNet / mt.softNet).toFixed(1) + " 倍，而 #18 已定保底劳动不设每日产出上限——没有一条会因「多打工」而变坏的轴，练功与差事就会被时间换钱压死。";
+    }
+    box2.className = "softlock" + (rep.problems.length || extra ? " bad" : "");
+    if (rep.problems.length === 0 && !extra) {
+      box2.textContent = "软锁检查：通过。可选行动 " + rep.open + " 项，时钟恒可推进，保底谋生始终兜底。";
+    } else {
+      box2.innerHTML = "<b>软锁 / 支配度检查：</b>" + (rep.problems.length ? "" : "软锁通过。") + "<br>" +
+        rep.problems.map(function (p) { return "· " + p; }).join("<br>") + extra;
+    }
+  }
+
+  function renderActions() {
+    var box = el("actions");
+    box.innerHTML = "";
+    var off = availability(state);
+    ACTIONS.forEach(function (a) {
+      var b = document.createElement("button");
+      b.textContent = a.label;
+      if (off[a.id]) {
+        b.disabled = true;
+        var w = document.createElement("span");
+        w.className = "why"; w.textContent = off[a.id];
+        b.appendChild(w);
+      } else if (a.desc) {
+        var w2 = document.createElement("span");
+        w2.className = "why"; w2.textContent = a.desc;
+        b.appendChild(w2);
+      }
+      b.onclick = function () { state = apply(state, a.id); stepIndex++; render(); };
+      box.appendChild(b);
+    });
+  }
+
+  function renderRules() {
+    var box = el("rules");
+    var rows = [];
+    rows.push(["体力（行动预算）", "决定版 · 单条", "睡觉与吃饭回、劳作与练功耗；<" + K.STAMINA_LOW + " 减速、<" + K.STAMINA_CRIT + " 只剩轻活、见底就地歇倒 " + (K.COLLAPSE_MINUTES / 60) + " 时辰（只损失时间）。它取代了旧「睡眠底线」这类硬规则。"]);
+    rows.push(["生命值（损伤载体）", "决定版 · 不致死", "战败 -" + K.VITAL_DEFEAT_LOSS + "、差事失手 -" + K.VITAL_JOB_FAIL_LOSS + "；自愈 +" + K.VITAL_RECOVER_PER_HOUR + "/时、休养 +" + K.VITAL_REST_PER_HOUR + "/时、跌打药 +" + K.VITAL_SALVE + "。≤60 带伤、≤35 伤重难支（不可接差）、≤15 命悬一线（体力上限 -20）；见底则被抬回卧床 1 日，回到 " + K.VITAL_FLOOR + "。"]);
+    rows.push(["内力（机会资源）", "决定版 · 不构成日常税", "睡觉 +" + K.NEILI_SLEEP_PER_HOUR + "/时（每夜 +" + (K.NEILI_SLEEP_PER_HOUR * K.SLEEP_MINUTES / 60) + "）、打坐调息 +" + K.NEILI_MEDITATE_PER_HOUR + "/时。差事需 " + K.NEILI_JOB_GATE + "、每趟耗 " + K.NEILI_JOB_COST + "；低内力只是「接不了好差事」，不扣收入、不扣练功。战斗内用法归 #23。"]);
+    rows.push(["恢复手段", "吃 / 睡 / 客栈 / 休养 / 药 / 打坐", "吃饭 30 分 · 10 文回体力 " + K.MEAL_STAMINA + "；通铺 8 时 · 20 文回体力 " + (K.SLEEP_MINUTES / 60 * K.SLEEP_STAM_PER_HOUR) + "、内力 " + (K.NEILI_SLEEP_PER_HOUR * K.SLEEP_MINUTES / 60) + "；客栈 8 时 · 60 文回体力 " + (K.SLEEP_MINUTES / 60 * K.INN_STAM_PER_HOUR) + " 且伤愈更快；休养不耗体力、伤愈 +" + K.VITAL_REST_PER_HOUR + "/时；打坐换内力。"]);
+    rows.push(["与旬结药钱", "每 10 日", "按病情阶段固定扣药费（" + K.STAGE_BILL.slice(1).join(" / ") + " 文），付不出就欠款累加（无复利）+ 病情恶化一档，不致死。"]);
+    rows.push(["与战斗失败", "取 #5 后果形状", "战败：生命值重伤 + 内力见底 + 医药费 + 债务，被抬回而非死亡；带伤期间不能接差、练功打折，缺口落回药钱与欠款。数值细节归 #23。"]);
+    rows.push(["与母亲线", "软压力", "探母不产生数值收益，只推进手写剧情；病情阶段切换由剧情决定，不随玩家财富缩放。"]);
+    rows.push(["已删除（本票否掉）", "—", "饥饿、疲劳、睡眠债、独立伤势档位、病气轴。前四者要么与体力重复表达同一种维护税，要么把同一种效率惩罚扣两次；病气轴与生命值同形（收入与练功 ×系数），属重复收税。"]);
+    rows.push(["不变量", "—", "任何状态下保底劳动可用；三条资源只抢时间、抢钱、抢机会，不直接结束游戏；因此不存在「资源归零致死」这种软锁源。"]);
+    box.innerHTML = "<table><tbody>" + rows.map(function (r) {
+      return "<tr><th>" + r[0] + "</th><td>" + r[2] + "</td></tr>";
+    }).join("") + "</tbody></table>";
+  }
+
+  function renderTabs() {
+    var box = el("tabs");
+    box.innerHTML = "";
+    SCENARIOS.forEach(function (sc, i) {
+      var b = document.createElement("button");
+      b.textContent = sc.key;
+      if (i === scenarioIndex) b.className = "on";
+      b.onclick = function () { scenarioIndex = i; stepIndex = 0; startScenario(); };
+      box.appendChild(b);
+    });
+  }
+
+  function startScenario() {
+    var sc = SCENARIOS[scenarioIndex];
+    state = newState(sc.preset || "R", state.seed);
+    if (sc.setup) state = sc.setup(state);
+    stepIndex = 0;
+    render();
+  }
+
+  function renderScenario() {
+    var sc = SCENARIOS[scenarioIndex];
+    var box = el("scenario");
+    box.innerHTML = "";
+    var p = document.createElement("p");
+    p.textContent = sc.blurb + (sc.preset ? "（本走查会自动切到 " + sc.preset + " 组合）" : "");
+    box.appendChild(p);
+    var steps = document.createElement("div");
+    steps.className = "steps";
+    sc.steps.forEach(function (id, i) {
+      var a = ACTIONS.filter(function (x) { return x.id === id; })[0];
+      var off = availability(state);
+      var b = document.createElement("button");
+      b.textContent = (i + 1) + ". 第 " + (i + 1) + " 步：" + a.label + (off[id] ? "（当前不可用：" + off[id] + "）" : "");
+      if (i < stepIndex) b.className = "done";
+      b.disabled = i !== stepIndex;
+      b.onclick = function () {
+        if (off[id]) return;
+        state = apply(state, id);
+        stepIndex = i + 1;
+        render();
+      };
+      steps.appendChild(b);
+    });
+    box.appendChild(steps);
+    var hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = "走查按固定顺序推一步；想乱点就直接用③的自由行动。重进本走查会重置到已知初始状态。";
+    box.appendChild(hint);
+  }
+
+  function renderTune() {
+    var box = el("tune");
+    box.innerHTML = "";
+    tuneMeta.forEach(function (t) {
+      var label = document.createElement("label");
+      var span = document.createElement("span"); span.textContent = t.label;
+      var input = document.createElement("input");
+      input.type = "range"; input.min = t.min; input.max = t.max; input.step = t.step;
+      input.value = t.stage ? K.STAGE_BILL[t.stage] : K[t.key];
+      var b = document.createElement("b");
+      b.textContent = input.value;
+      input.oninput = function () { b.textContent = input.value; };
+      input.onchange = function () {
+        var v = Number(input.value);
+        if (t.stage) K.STAGE_BILL[t.stage] = v; else K[t.key] = v;
+        state = newState(state.preset, state.seed);
+        render();
+      };
+      label.appendChild(span); label.appendChild(input); label.appendChild(b);
+      box.appendChild(label);
+    });
+  }
+
+  function renderLog() {
+    var box = el("log");
+    box.innerHTML = "";
+    state.log.forEach(function (e) {
+      var li = document.createElement("li");
+      var t = document.createElement("time");
+      t.textContent = "第 " + dayOf(e.at) + " 日 " + hhmm(e.at);
+      li.appendChild(t);
+      li.appendChild(document.createTextNode(e.text));
+      box.appendChild(li);
+    });
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

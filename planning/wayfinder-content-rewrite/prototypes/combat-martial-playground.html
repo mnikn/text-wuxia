@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>武学与战斗结算沙盘 · 票据 23</title>
+<style>
+  :root {
+    --ink: #2a2620;
+    --paper: #f7f3ea;
+    --card: #fffdf8;
+    --accent: #2b5a6a;
+    --accent-soft: #e3edef;
+    --danger: #8b3a2f;
+    --danger-soft: #f5e6e2;
+    --ok: #3f6b3a;
+    --muted: #8a8375;
+    --line: #ddd6c8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif;
+    background: var(--paper); color: var(--ink); line-height: 1.7;
+    padding: 24px 16px 80px; max-width: 1100px; margin: 0 auto;
+  }
+  header { border-bottom: 3px double var(--line); padding-bottom: 14px; margin-bottom: 14px; }
+  h1 { font-size: 25px; letter-spacing: 2px; color: var(--accent); }
+  header .sub { color: var(--muted); font-size: 13.5px; margin-top: 4px; }
+  header .question { background: var(--accent-soft); border-left: 4px solid var(--accent); padding: 9px 13px; margin-top: 10px; font-size: 14px; }
+  h2 { font-size: 17px; color: var(--accent); margin: 22px 0 8px; letter-spacing: 1px; }
+  h3 { font-size: 14.5px; margin: 14px 0 6px; }
+  p.note { font-size: 13.5px; color: var(--muted); margin: 4px 0 8px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 11px 13px; font-size: 13.5px; }
+  .card .cardtitle { font-size: 12px; color: var(--muted); letter-spacing: 2px; margin-bottom: 5px; border-bottom: 1px solid var(--line); padding-bottom: 3px; }
+  .grid { display: grid; gap: 11px; }
+  .g2 { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+  .kv { display: flex; justify-content: space-between; gap: 8px; padding: 1px 0; }
+  .kv .k { color: var(--muted); white-space: nowrap; }
+  .kv .v { text-align: right; }
+  .v.on { color: var(--danger); font-weight: bold; }
+  .v.off { color: var(--muted); }
+  .v.good { color: var(--ok); font-weight: bold; }
+  button { font-family: inherit; font-size: 13.5px; padding: 6px 12px; background: var(--card);
+    border: 1px solid var(--accent); color: var(--accent); border-radius: 4px; cursor: pointer; }
+  button:hover { background: var(--accent-soft); }
+  button.primary { background: var(--accent); color: #fff; }
+  button.primary:hover { background: #1f4653; }
+  button.warn { border-color: var(--danger); color: var(--danger); }
+  button.warn:hover { background: var(--danger-soft); }
+  button:disabled { opacity: .38; cursor: default; background: var(--card); }
+  .btns { display: flex; flex-wrap: wrap; gap: 7px; margin: 9px 0; align-items: center; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 2px solid var(--line); }
+  .tab { padding: 7px 15px; cursor: pointer; border: 1px solid var(--line); border-bottom: none;
+    border-radius: 6px 6px 0 0; background: var(--card); font-size: 13.5px; }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .panel { display: none; padding-top: 6px; }
+  .panel.active { display: block; }
+  .parambar { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; background: var(--accent-soft);
+    border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; margin: 12px 0 4px; font-size: 13px; }
+  .parambar label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+  .parambar select, .parambar input[type=number] { font-family: inherit; font-size: 13px; padding: 2px 4px;
+    border: 1px solid var(--line); border-radius: 3px; background: #fff; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; background: var(--card); }
+  th, td { border: 1px solid var(--line); padding: 4px 7px; text-align: left; }
+  th { background: var(--accent-soft); font-weight: normal; color: var(--accent); }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr.hi td { background: #fdf6e3; font-weight: bold; }
+  .bar { height: 9px; background: #e7e1d4; border-radius: 5px; overflow: hidden; margin: 3px 0 6px; }
+  .bar > span { display: block; height: 100%; }
+  .bar.hp > span { background: #a8443a; }
+  .bar.sp > span { background: #7a8b3a; }
+  .bar.qi > span { background: #3a6b8b; }
+  .tag { display: inline-block; font-size: 11.5px; padding: 0 6px; border-radius: 3px; border: 1px solid var(--line);
+    background: #fff; color: var(--muted); margin-right: 5px; }
+  .tag.big { color: var(--accent); border-color: var(--accent); }
+  .tag.bad { color: var(--danger); border-color: var(--danger); }
+  .tag.good { color: var(--ok); border-color: var(--ok); }
+  .log { max-height: 420px; overflow-y: auto; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 11px; font-size: 13.5px; }
+  .log .entry { padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .log .entry:last-child { border-bottom: none; }
+  .log .meta { font-size: 12px; color: var(--muted); }
+  .log .hit { color: var(--danger); }
+  .log .miss { color: var(--muted); }
+  .log .sys { color: var(--accent); }
+  .desc { background: var(--card); border-left: 3px solid var(--accent); padding: 8px 12px; font-size: 13.5px; margin-bottom: 10px; }
+  .scen { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: var(--card); margin-bottom: 10px; font-size: 13.5px; }
+  .scen .st { display: flex; gap: 8px; padding: 3px 0; align-items: baseline; }
+  .scen .st .n { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .hint { color: var(--muted); font-size: 12.5px; }
+  .verdict { margin-top: 7px; padding: 7px 10px; background: var(--accent-soft); border-radius: 4px; font-size: 13px; }
+  ol.q { margin: 6px 0 6px 22px; font-size: 13.5px; }
+  ol.q li { margin-bottom: 7px; }
+  textarea { width: 100%; height: 130px; font-family: ui-monospace, Consolas, monospace; font-size: 12px; padding: 8px;
+    border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+  .muted { color: var(--muted); }
+  .chart { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>武学与战斗结算沙盘</h1>
+  <div class="sub">票据 <a href="https://github.com/mnikn/text-wuxia/issues/23">#23 设计战斗与武学结算</a> · 依赖 <a href="https://github.com/mnikn/text-wuxia/issues/18">#18 属性体系</a> · 粗糙可玩原型（数字全部可调，只用来"感觉对不对"）</div>
+  <div class="question">
+    <b>本票要定：</b>① 命中 / 伤害 / 闪避 / 内力 / 招式怎么读「实际武学值 + 膂力·身法·根骨」；
+    ② 战斗外武学判定存不存在；③ 前五档境界阈值与三类成长曲线的经验表；
+    ④ 用原型验证：低天赋也能成长、基本功 100 级质变、三种曲线手感不同、败了还能接着玩。
+  </div>
+</header>
+
+<div class="tabs" id="tabs"></div>
+<div id="errBox" style="display:none;white-space:pre-wrap;background:#f5e6e2;border:1px solid #8b3a2f;color:#8b3a2f;border-radius:6px;padding:9px 12px;margin:10px 0;font-size:12.5px;font-family:ui-monospace,Consolas,monospace"></div>
+
+<div class="parambar" id="parambar"></div>
+
+<!-- ========== ① 人物 ========== -->
+<div class="panel" id="p0">
+  <div class="desc">
+    先天天赋五项、合计 25 点（#18）。天赋职责固定：膂力管外功发力与伤害、身法管命中闪避与先手、悟性只管<b>修习速度</b>、
+    根骨管气血内力与内功门槛、福缘不进战斗结算（奇遇与事件权重）。
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="cardtitle">先天天赋分配（合计 25）</div>
+      <div id="talentRows"></div>
+      <div class="btns">
+        <button onclick="UI.preset('even')">均衡 5/5/5/5/5</button>
+        <button onclick="UI.preset('dull')">低悟性笨蛋（悟性1）</button>
+        <button onclick="UI.preset('bright')">高悟性天才（悟性10）</button>
+        <button onclick="UI.preset('strong')">力士（膂力10·身法4）</button>
+      </div>
+      <div class="hint" id="talentHint"></div>
+    </div>
+    <div class="card">
+      <div class="cardtitle">派生面板（随用随算，不进存档）</div>
+      <div id="derivePanel"></div>
+    </div>
+  </div>
+  <h2>所习武学（两门类以上各选一门）</h2>
+  <p class="note">主战武学决定命中与伤害；轻功参与防御值；内功决定内力上限。三个槽位可空（空即 0）。</p>
+  <div class="grid g3" id="artPickers"></div>
+  <div class="btns"><button class="warn" onclick="UI.resetAll()">重开新角色</button></div>
+</div>
+
+<!-- ========== ② 修炼 ========== -->
+<div class="panel" id="p1">
+  <div class="desc">
+    修炼一段 = 2 小时。具体武学经验吃悟性倍率，<b>基本功经验不吃悟性</b>（这是"低天赋也能成长"的通道）。
+    效率（伤势 / 将来 #24 的饥饿疲劳）与教练各乘一次。
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="cardtitle">本段修炼</div>
+      <div id="trainControls"></div>
+    </div>
+    <div class="card">
+      <div class="cardtitle">进度分解：实际武学值 = min(100, 具体武学 + 基本功加成)</div>
+      <div id="trainProgress"></div>
+    </div>
+  </div>
+  <h2>三种曲线 · 累计经验与到手小时数</h2>
+  <div class="chart" id="curveChart"></div>
+  <div id="curveTable"></div>
+  <h2>参数</h2>
+  <div id="trainTune"></div>
+</div>
+
+<!-- ========== ③ 战斗 ========== -->
+<div class="panel" id="p2">
+  <div class="desc">
+    回合骨架沿用旧图（玩家动作 → 敌人回应 → 回合末结算，原子提交）。判定走 #16 的检定档带：
+    <b>d100 + 检定值 vs 难度</b>，差值分四档。敌我共用同一个 strike 函数——同一套引擎两边跑。
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="cardtitle">选对手</div>
+      <div id="enemyPicker"></div>
+      <div class="btns"><button class="primary" onclick="UI.startFight()">起手</button>
+        <button onclick="UI.autoFight(200)">自动打 200 场（胜率）</button></div>
+      <div id="simOut"></div>
+    </div>
+    <div class="card">
+      <div class="cardtitle">我方面板（命中率 / 伤害期望实时算）</div>
+      <div id="pcPanel"></div>
+    </div>
+  </div>
+  <h2>交手</h2>
+  <div class="grid g2">
+    <div class="card"><div class="cardtitle">我方</div><div id="fpHp"></div></div>
+    <div class="card"><div class="cardtitle">敌方</div><div id="feHp"></div></div>
+  </div>
+  <div class="btns" id="fightBtns"></div>
+  <div class="log" id="fightLog"><div class="entry sys">尚未起手。</div></div>
+</div>
+
+<!-- ========== ④ 数值台 ========== -->
+<div class="panel" id="p3">
+  <div class="desc">把公式和表摊开：所有数字都在这里改得动，改完回战斗页就能感觉到。</div>
+  <h2>境界阈值（前五档 + 化境）</h2>
+  <div id="realmTable"></div>
+  <h2>门类基本功加成表（0～100，100 级是断崖）</h2>
+  <div id="basicTable"></div>
+  <h2>三类曲线逐级需求表（每 10 级采样）</h2>
+  <div id="xpTable"></div>
+  <h2>结算公式总表</h2>
+  <div id="formulaTable"></div>
+  <h2>当前参数（可改，或复制走）</h2>
+  <div id="tuneEditor"></div>
+  <div class="btns"><button onclick="UI.copyTune()">复制参数 JSON</button></div>
+  <textarea id="tuneOut" readonly></textarea>
+</div>
+
+<!-- ========== ⑤ 验证与待决 ========== -->
+<div class="panel" id="p4">
+  <div class="desc">四个必须验证的手感，用按钮跑给你看；跑完看结论那行写得对不对。</div>
+  <div id="scenarios"></div>
+  <h2>待决问题（我给出的默认值 + 为什么，以及另一条路是什么）</h2>
+  <ol class="q" id="questions"></ol>
+</div>
+
+<!-- ================================================================
+     CORE：无 DOM 依赖的纯逻辑（node 可抽出校核）
+     ================================================================ -->
+<script id="core">
+"use strict";
+
+const TUNE = {
+  /* 检定档带：#16 全局缺省 ±20；本原型默认战斗内加宽到 ±30（在参数条里可切回 ±20 对比） */
+  bandGreat: 30,
+  bandFail: -30,
+  hitClamp: [5, 95],
+  /* 双击制开关：关 = 单掷（攻方检定里已含闪避）；开 = 攻方命中检定 + 受方闪避检定 */
+  doubleRoll: false,
+  /* 境界基准："art" = 按具体武学等级（与 CONTEXT.md「对武学熟练度的展示」一致）；
+     "real" = 按实际武学值（基本功也能开招式） */
+  realmBasis: "art",
+  /* 门类基本功 100「贯通」：该门类招式消耗 -25%、命中 +5 */
+  basicUnlockPerk: true,
+  perkCostMult: 0.75,
+  perkHitBonus: 5,
+  /* 战斗外武学判定："roll" 掷检定 / "threshold" 确定性阈值 */
+  outsideCheck: "roll",
+
+  /* 成长 */
+  sessionHours: 2,
+  xpPerSession: 30,
+  basicXpByArt: 10,
+  basicXpDedicated: 25,
+  coachMult: 1.5,
+  insight: [0.50, 0.625, 0.75, 0.875, 1.00, 1.10, 1.20, 1.30, 1.40, 1.50],
+  basicBonusCoef: 20,
+  basicBonus100: 40,
+
+  /* 派生 */
+  hpBase: 40, hpPerCon: 6, hpNeigongCoef: 0.3,
+  spBase: 50, spPerTalent: 3,
+  qiPerCon: 4, qiNeigongCoef: 0.5, qiRegenBase: 1, qiRegenDiv: 4,
+  spRegenBase: 3, spRegenDiv: 4,
+  talentCoef: 2,          // 命中/防御里的天赋修正 = 2 × (天赋 − 5) → −8 ~ +10
+
+  /* 伤害 */
+  dmgWeapon: { 徒手: 3, 短兵: 6, 刀: 8 },
+  dmgStrCoef: 0.6,
+  dmgArtCoef: 0.15,
+  dmgMult: { 大成功: 1.5, 成功: 1.0, 失败: 0.35, 大失败: 0 },
+
+  /* 战斗消耗与回复 */
+  attackSp: 12, defendSp: 10, breathSpMul: 2, defendDefBonus: 15, defendDmgMul: 0.5,
+  knockdownStun: 1,
+
+  /* 战斗经验：实战长功夫，败了也长（50%） */
+  fightXpArt: 0.5, fightXpBasic: 0.4, fightXpRound: 2, defeatXpMul: 0.5,
+
+  /* 败北延续 */
+  woundHoursLight: 8, woundHoursHeavy: 24, defeatMoneyLoss: [5, 25],
+  woundTrainPenalty: 0.5,
+};
+
+const TALENTS = [
+  { key: "str", name: "膂力", duty: "外功发力：伤害项 + 体力上限" },
+  { key: "agi", name: "身法", duty: "命中检定 + 防御值 + 体力上限 + 逃跑" },
+  { key: "ins", name: "悟性", duty: "具体武学修习经验倍率（0.50～1.50）" },
+  { key: "con", name: "根骨", duty: "气血上限 + 内力上限与回复 + 内功门槛" },
+  { key: "luk", name: "福缘", duty: "奇遇资格与事件权重（不进战斗结算）" },
+];
+
+const REALMS = [
+  { level: 0, name: "未入门" },
+  { level: 10, name: "初窥" },
+  { level: 30, name: "小成" },
+  { level: 55, name: "熟练" },
+  { level: 80, name: "精通" },
+  { level: 100, name: "化境" },
+];
+
+const CURVES = {
+  "易学难精": {
+    tag: "前期最快、封顶最贵（5→95→500 的翘尾）",
+    bands: [[1, 20, 4], [21, 40, 10], [41, 60, 22], [61, 80, 45], [81, 99, 95], [100, 100, 500]],
+  },
+  "平稳": {
+    tag: "全程匀速、总成本最低（无捷径也无墙）",
+    bands: [[1, 20, 8], [21, 40, 14], [41, 60, 24], [61, 80, 38], [81, 99, 60], [100, 100, 150]],
+  },
+  "艰深": {
+    tag: "前期最慢、最后一段反而最便宜（熬得动就反超）",
+    bands: [[1, 20, 14], [21, 40, 26], [41, 60, 40], [61, 80, 54], [81, 99, 52], [100, 100, 150]],
+  },
+};
+
+const ARTS = [
+  {
+    id: "quan.kaimen", cat: "拳脚", name: "开门八式", curve: "平稳", weapon: "徒手", conGate: 0,
+    desc: "别院入门拳，一式一形。老拳师说「脚下有根」，说的就是这个。",
+    moves: [
+      { id: "yingmian", name: "迎面三拳", realm: "小成", sp: 10, qi: 0, mult: 1.25, note: "连击，不耗内力" },
+      { id: "tieshan", name: "贴山靠", realm: "熟练", sp: 14, qi: 4, mult: 1.5, knockdown: 0.35, note: "得手三成五击倒" },
+      { id: "bengquan", name: "半步崩拳", realm: "精通", sp: 18, qi: 10, mult: 2.0, hit: 10, note: "命中检定 +10" },
+    ],
+  },
+  {
+    id: "quan.fenjin", cat: "拳脚", name: "分筋错骨手", curve: "易学难精", weapon: "徒手", conGate: 0, shady: true,
+    desc: "黑市上淘来的擒拿路数，起手极快，越往上越晦涩。学它的人多半没好下场。",
+    moves: [
+      { id: "cuogu", name: "错骨手", realm: "小成", sp: 8, qi: 2, mult: 1.3, note: "起手极快，消耗低" },
+      { id: "suohou", name: "锁喉", realm: "熟练", sp: 12, qi: 5, mult: 1.6, enemyHitDown: 15, note: "中者下回合命中 −15" },
+      { id: "fenjin", name: "分筋", realm: "精通", sp: 16, qi: 12, mult: 2.1, knockdown: 0.45, note: "四成五击倒" },
+    ],
+  },
+  {
+    id: "dao.cangyan", cat: "刀法", name: "苍岩刀", curve: "平稳", weapon: "刀", conGate: 0,
+    desc: "苍岩派护镖的看家刀，一招一式都为官道上的拼命，不花哨。",
+    moves: [
+      { id: "hengjiang", name: "横江式", realm: "小成", sp: 12, qi: 2, mult: 1.3, note: "一记横削，稳当" },
+      { id: "huifeng", name: "回风斩", realm: "熟练", sp: 16, qi: 6, mult: 1.6, knockdown: 0.3, note: "三成击倒" },
+      { id: "juebi", name: "苍岩绝壁", realm: "精通", sp: 20, qi: 12, mult: 2.2, hit: 8, note: "命中 +8，硬砍" },
+    ],
+  },
+  {
+    id: "dao.duanyue", cat: "刀法", name: "断岳刀", curve: "艰深", weapon: "刀", conGate: 0,
+    desc: "溃兵营里流出来的狠刀，起手就要人半条命，练的人得先挨得住。",
+    moves: [
+      { id: "kaishan", name: "开山", realm: "小成", sp: 14, qi: 4, mult: 1.45, note: "吃力气，命中略钝" },
+      { id: "duanyue", name: "断岳", realm: "熟练", sp: 18, qi: 8, mult: 1.85, note: "一刀两断" },
+      { id: "lipi", name: "力劈华山", realm: "精通", sp: 24, qi: 16, mult: 2.5, knockdown: 0.5, note: "五成击倒" },
+    ],
+  },
+  {
+    id: "qing.taxue", cat: "轻功", name: "踏雪", curve: "平稳", weapon: "徒手", conGate: 0,
+    desc: "别院后山夜里练的轻身功夫，落脚无声，跑起来省力。",
+    moves: [
+      { id: "wusheng", name: "踏雪无痕", realm: "小成", sp: 8, qi: 3, mult: 1.0, defUp: 20, note: "本回合防御 +20" },
+      { id: "dengzhi", name: "登枝", realm: "熟练", sp: 10, qi: 6, mult: 1.1, defUp: 30, note: "本回合防御 +30" },
+    ],
+  },
+  {
+    id: "qing.zhuifeng", cat: "轻功", name: "追风步", curve: "易学难精", weapon: "徒手", conGate: 0,
+    desc: "野路子身法，起步像被狗撵，练到深处能在人缝里走。",
+    moves: [
+      { id: "fengxing", name: "风行", realm: "小成", sp: 6, qi: 2, mult: 1.0, defUp: 18, note: "消耗低，防御 +18" },
+      { id: "huaquan", name: "花拳虚步", realm: "熟练", sp: 10, qi: 7, mult: 1.2, defUp: 35, counter: true, note: "防御 +35，被击中则反打" },
+    ],
+  },
+  {
+    id: "nei.cangyan", cat: "内功", name: "苍岩吐纳法", curve: "平稳", weapon: "徒手", conGate: 0,
+    desc: "山门早晚功课，调息养气。根骨好的人，内力厚得快。",
+    moves: [
+      { id: "tuna", name: "吐纳", realm: "小成", sp: 0, qi: -8, mult: 0.8, note: "回内力 8（不出手）" },
+      { id: "yizhou", name: "炁走周身", realm: "熟练", sp: 6, qi: -6, mult: 1.15, defUp: 12, note: "回内力 6，防御 +12" },
+    ],
+  },
+  {
+    id: "nei.xuanyin", cat: "内功", name: "玄阴真炁", curve: "艰深", weapon: "徒手", conGate: 6,
+    desc: "山门里也只三两卷抄本的内功，阴寒一路。根骨不足者练之伤身——这里就是那个门槛。",
+    moves: [
+      { id: "hantan", name: "寒潭印", realm: "小成", sp: 8, qi: 6, mult: 1.35, enemyHitDown: 10, note: "掌力阴寒，敌命中 −10" },
+      { id: "xuanbing", name: "玄冰劲", realm: "熟练", sp: 12, qi: 12, mult: 1.75, enemyHitDown: 20, note: "敌命中 −20" },
+      { id: "guiqi", name: "龟息内敛", realm: "精通", sp: 0, qi: -20, mult: 1.0, defUp: 40, note: "回内力 20，防御 +40" },
+    ],
+  },
+];
+
+const ENEMIES = [
+  { id: "po", name: "街头泼皮", hp: 70, sp: 90, qi: 0, art: 12, agi: 4, str: 6, weapon: "短兵", moveArtGate: 30, moves: [{ id: "hu", name: "乱砍", sp: 10, qi: 0, mult: 1.2 }], desc: "南门贫巷常见的那种人，三五个一伙，落单也敢伸手。" },
+  { id: "kui", name: "溃兵", hp: 105, sp: 100, qi: 20, art: 32, agi: 5, str: 8, weapon: "刀", moveArtGate: 32, moves: [{ id: "pi", name: "劈砍", sp: 14, qi: 4, mult: 1.45, knockdown: 0.25 }], desc: "败下来的兵，刀上有锈，手上有数。" },
+  { id: "shixiong", name: "教场师兄", hp: 130, sp: 110, qi: 40, art: 55, agi: 6, str: 8, weapon: "刀", moveArtGate: 55, moves: [{ id: "hfeng", name: "回风斩", sp: 16, qi: 6, mult: 1.6, knockdown: 0.3 }], desc: "苍岩别院教场上的老手，出手留三分，专试你的根底。" },
+  { id: "daoke", name: "黑市刀客", hp: 150, sp: 120, qi: 60, art: 78, agi: 8, str: 9, weapon: "刀", moveArtGate: 78, moves: [{ id: "juebi", name: "绝壁式", sp: 20, qi: 12, mult: 2.2, hit: 8 }], desc: "黑市里讨生活的人，刀不认人。挨他一记就知道了。" },
+];
+
+/* ---------- 曲线与境界 ---------- */
+const _xpMemo = {};
+function reqFor(level, curve) {
+  const c = CURVES[curve] || CURVES["平稳"];
+  for (const [lo, hi, v] of c.bands) if (level >= lo && level <= hi) return v;
+  return 0;
+}
+function xpTo(level, curve) {
+  const key = curve + ":" + level;
+  if (_xpMemo[key] !== undefined) return _xpMemo[key];
+  let t = 0;
+  for (let l = 1; l <= level; l++) t += reqFor(l, curve);
+  _xpMemo[key] = t;
+  return t;
+}
+function realmIndex(level) {
+  let i = 0;
+  for (let k = 0; k < REALMS.length; k++) if (level >= REALMS[k].level) i = k;
+  return i;
+}
+function realmOf(level) { return REALMS[realmIndex(level)].name; }
+function nextRealm(level) { const i = realmIndex(level); return i + 1 < REALMS.length ? REALMS[i + 1] : null; }
+
+/* ---------- 数值 ---------- */
+function basicBonus(level) {
+  const l = Math.max(0, Math.min(100, level));
+  return l >= 100 ? TUNE.basicBonus100 : Math.floor(TUNE.basicBonusCoef * Math.pow(l / 100, 2));
+}
+function insightMult(ins) { return TUNE.insight[Math.max(1, Math.min(10, ins)) - 1]; }
+function artById(id) { return ARTS.find((a) => a.id === id) || null; }
+function enemyById(id) { return ENEMIES.find((e) => e.id === id) || null; }
+
+function newChar() {
+  const c = {
+    talents: { str: 5, agi: 5, ins: 5, con: 5, luk: 5 },
+    arts: {}, basics: {},
+    mainArt: "quan.kaimen", qinggongArt: null, neigongArt: null,
+    hours: 0, money: 120, wounds: [], log: [],
+  };
+  for (const a of ARTS) c.arts[a.id] = { level: 0, xp: 0 };
+  for (const cat of ["拳脚", "刀法", "轻功", "内功"]) c.basics[cat] = { level: 0, xp: 0 };
+  return c;
+}
+function artLevel(c, id) { return id && c.arts[id] ? c.arts[id].level : 0; }
+function basicLevel(c, cat) { return c.basics[cat] ? c.basics[cat].level : 0; }
+/** 实际武学值 = min(100, 具体武学 + 门类基本功加成) */
+function realOf(c, id) {
+  if (!id) return 0;
+  const a = artById(id);
+  if (!a) return 0;
+  return Math.min(100, artLevel(c, id) + basicBonus(basicLevel(c, a.cat)));
+}
+/** 境界基准：默认按具体武学等级；切到 "real" 则按实际武学值 */
+function realmValue(c, id) {
+  return TUNE.realmBasis === "real" ? realOf(c, id) : artLevel(c, id);
+}
+function realmOfArt(c, id) { return realmOf(realmValue(c, id)); }
+function hasPerk(c, id) {
+  const a = artById(id);
+  return !!(TUNE.basicUnlockPerk && a && basicLevel(c, a.cat) >= 100);
+}
+function eff(c) { return c.wounds.length > 0 ? TUNE.woundTrainPenalty : 1; }
+
+function derived(c) {
+  const t = c.talents;
+  const main = realOf(c, c.mainArt);
+  const qing = realOf(c, c.qinggongArt);
+  const nei = realOf(c, c.neigongArt);
+  const qingCatBasic = c.qinggongArt ? basicLevel(c, artById(c.qinggongArt).cat) : 0;
+  return {
+    main, qing, nei,
+    hit: main + TUNE.talentCoef * (t.agi - 5),
+    def: Math.floor((main + (c.qinggongArt ? qing : main)) / 2) + TUNE.talentCoef * (t.agi - 5),
+    hpMax: TUNE.hpBase + t.con * TUNE.hpPerCon + Math.floor(nei * TUNE.hpNeigongCoef),
+    spMax: TUNE.spBase + (t.str + t.agi) * TUNE.spPerTalent,
+    qiMax: t.con * TUNE.qiPerCon + Math.floor(nei * TUNE.qiNeigongCoef),
+    qiRegen: TUNE.qiRegenBase + Math.floor(t.con / TUNE.qiRegenDiv),
+    spRegen: TUNE.spRegenBase + Math.floor(t.str / TUNE.spRegenDiv),
+    qingCatBasic,
+  };
+}
+function powerOf(str, real, weapon, moveMult) {
+  return (TUNE.dmgWeapon[weapon] + Math.floor(str * TUNE.dmgStrCoef) + Math.floor(real * TUNE.dmgArtCoef)) * (moveMult || 1);
+}
+function powerBreakdown(str, real, weapon) {
+  return { weapon: TUNE.dmgWeapon[weapon], str: Math.floor(str * TUNE.dmgStrCoef), art: Math.floor(real * TUNE.dmgArtCoef) };
+}
+
+/* ---------- 检定 ---------- */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/**
+ * 检定（差值式，与 #16 的 `check="属性 难度"` 同一把尺子）：
+ *   边距 = (检定值 − 难度) + (d100 − 50)
+ *   同为 50 身手者正好五五开；难度上写 45 就是"需要检定值 45 才五五开"。
+ * 等价于 d100 + 检定值 vs (50 + 难度)，只是把 50 折进边距，便于显示命中率。
+ */
+function rollBand(rng, value, difficulty, t) {
+  const roll = 1 + Math.floor(rng() * 100);
+  const margin = value - difficulty + (roll - 50);
+  const band = margin >= t.bandGreat ? "大成功" : margin >= 0 ? "成功" : margin > t.bandFail ? "失败" : "大失败";
+  return { roll, value, difficulty, margin, band };
+}
+function clampPct(p, clamp) { return Math.max(clamp[0], Math.min(clamp[1], Math.round(p))); }
+/** 成功率 = clamp(50 + 检定值 − 难度) */
+function hitRate(value, difficulty, t) { return clampPct(50 + value - difficulty, t.hitClamp); }
+/** 双击制：攻方先掷命中，受方再掷闪避；最终命中率 ≈ p × (1 − p') */
+function hitRateDouble(value, difficulty, t) {
+  const p1 = hitRate(value, difficulty, t) / 100;
+  const p2 = hitRate(difficulty, value, t) / 100;
+  return clampPct(p1 * (1 - p2) * 100, t.hitClamp);
+}
+function effectiveHitRate(value, difficulty, t) {
+  return t.doubleRoll ? hitRateDouble(value, difficulty, t) : hitRate(value, difficulty, t);
+}
+const clamp01 = (x) => Math.max(0, Math.min(1, x));
+/** 四档概率（d100 均匀） */
+function bandProbs(delta, t) {
+  const pGreat = clamp01((51 - t.bandGreat + delta) / 100);
+  const pGe0 = clamp01((51 + delta) / 100);
+  const pGeFail = clamp01((51 - t.bandFail + delta) / 100);
+  return { 大成功: pGreat, 成功: pGe0 - pGreat, 失败: pGeFail - pGe0, 大失败: 1 - pGeFail };
+}
+function expectedDamage(power, value, difficulty, t) {
+  const p = bandProbs(value - difficulty, t);
+  let d = power * (t.dmgMult["大成功"] * p["大成功"] + t.dmgMult["成功"] * p["成功"] + t.dmgMult["失败"] * p["失败"]);
+  if (t.doubleRoll) d *= 1 - hitRate(difficulty, value, t) / 100;
+  return Math.max(0, d);
+}
+/** 战斗外武学判定（同一个档带） */
+function outsideCheck(c, artId, difficulty) {
+  const real = realOf(c, artId);
+  const value = real + TUNE.talentCoef * (c.talents.agi - 5);
+  if (TUNE.outsideCheck === "threshold") {
+    return { mode: "阈值", value, difficulty, ok: value >= difficulty };
+  }
+  const rng = mulberry32(20260915 + difficulty + real);
+  const r = rollBand(rng, value, difficulty, TUNE);
+  return { mode: "掷检定", value, difficulty, ok: r.band === "大成功" || r.band === "成功", roll: r.roll, band: r.band, rate: hitRate(value, difficulty, TUNE) };
+}
+
+/* ---------- 修炼 ---------- */
+function trainSession(c, artId, opts) {
+  opts = opts || {};
+  const a = artById(artId);
+  const mult = (opts.coach ? TUNE.coachMult : 1) * eff(c);
+  let out = { artXp: 0, basicXp: 0, levels: [], basicLevels: [] };
+  if (opts.dedicated) {
+    const cat = a.cat;
+    out.basicXp = Math.max(1, Math.round(TUNE.basicXpDedicated * mult));
+    applyBasicXp(c, cat, out.basicXp, out);
+  } else {
+    const gate = a.conGate > 0 && c.talents.con < a.conGate;
+    if (gate) {
+      out.blocked = `根骨不足 ${a.conGate}（内功门槛）`;
+      return out;
+    }
+    out.artXp = Math.max(1, Math.round(TUNE.xpPerSession * insightMult(c.talents.ins) * mult));
+    applyArtXp(c, artId, out.artXp, out);
+    out.basicXp = Math.max(1, Math.round(TUNE.basicXpByArt * mult));
+    applyBasicXp(c, a.cat, out.basicXp, out);
+  }
+  c.hours += TUNE.sessionHours;
+  return out;
+}
+function applyArtXp(c, artId, gain, out) {
+  const st = c.arts[artId];
+  st.xp += gain;
+  while (st.level < 100) {
+    const need = reqFor(st.level + 1, artById(artId).curve);
+    if (st.xp < need) break;
+    st.xp -= need;
+    st.level += 1;
+    (out.levels = out.levels || []).push(st.level);
+  }
+  if (st.level >= 100) st.xp = 0;
+}
+function applyBasicXp(c, cat, gain, out) {
+  const st = c.basics[cat];
+  st.xp += gain;
+  while (st.level < 100) {
+    const need = reqFor(st.level + 1, "平稳");
+    if (st.xp < need) break;
+    st.xp -= need;
+    st.level += 1;
+    (out.basicLevels = out.basicLevels || []).push(st.level);
+  }
+  if (st.level >= 100) st.xp = 0;
+}
+/** 各境界到手小时数（吃悟性与当前效率：有伤时更慢） */
+function hoursTo(c, artId, targetLevel, opts) {
+  opts = opts || {};
+  const a = artById(artId);
+  const st = c.arts[artId];
+  const mult = (opts.coach ? TUNE.coachMult : 1) * (opts.ins ? insightMult(opts.ins) : insightMult(c.talents.ins)) * (opts.raw ? 1 : eff(c));
+  const per = Math.max(1, Math.round(TUNE.xpPerSession * mult));
+  let need = xpTo(targetLevel, a.curve) - xpTo(st.level, a.curve) - st.xp;
+  if (need <= 0) return 0;
+  return (need / per) * TUNE.sessionHours;
+}
+function hoursToBasic(c, cat, targetLevel, opts) {
+  opts = opts || {};
+  const st = c.basics[cat];
+  const mult = opts.coach ? TUNE.coachMult : 1;
+  const per = Math.max(1, Math.round(TUNE.basicXpDedicated * mult)); // 基本功不吃悟性
+  const need = xpTo(targetLevel, "平稳") - xpTo(st.level, "平稳") - st.xp;
+  if (need <= 0) return 0;
+  return (need / per) * TUNE.sessionHours;
+}
+/** 复制角色一路修炼该武学，直到「实际武学值」达标（含顺带积累的基本功） */
+function sessionsToReal(c0, artId, target, maxSessions) {
+  const c = JSON.parse(JSON.stringify(c0));
+  const cap = maxSessions || 6000;
+  let n = 0;
+  while (realOf(c, artId) < target && n < cap) { trainSession(c, artId, {}); n++; }
+  return {
+    sessions: n, hours: n * TUNE.sessionHours, real: realOf(c, artId),
+    level: artLevel(c, artId), basic: basicLevel(c, artById(artId).cat), capped: n >= cap,
+  };
+}
+
+/* ---------- 战斗（敌我共用一套引擎） ---------- */
+function sideFromPlayer(c) {
+  const d = derived(c);
+  const a = artById(c.mainArt);
+  const moves = c.mainArt ? a.moves.map((m) => Object.assign({}, m)) : [];
+  return {
+    kind: "player", name: "我", artId: c.mainArt, weapon: a ? a.weapon : "徒手",
+    hp: d.hpMax, hpMax: d.hpMax, sp: d.spMax, spMax: d.spMax, qi: d.qiMax, qiMax: d.qiMax,
+    qiRegen: d.qiRegen, spRegen: d.spRegen, hit: d.hit, def: d.def,
+    str: c.talents.str, real: d.main, moves, perk: hasPerk(c, c.mainArt),
+  };
+}
+function sideFromEnemy(e) {
+  const hit = e.art + TUNE.talentCoef * (e.agi - 5);
+  return {
+    kind: "enemy", name: e.name, artId: null, weapon: e.weapon, enemyId: e.id,
+    hp: e.hp, hpMax: e.hp, sp: e.sp, spMax: e.sp, qi: e.qi, qiMax: e.qi,
+    qiRegen: 1 + Math.floor(e.agi / 4), spRegen: 3 + Math.floor(e.str / 4),
+    hit, def: hit, str: e.str, real: e.art,
+    moves: (e.moves || []).filter((m) => e.art >= (e.moveArtGate || 0)).map((m) => Object.assign({}, m)),
+    perk: false,
+  };
+}
+function startFight(c, enemyId, seed) {
+  const e = enemyById(enemyId);
+  return {
+    round: 1, rng: mulberry32(seed >>> 0), log: [], outcome: null,
+    p: sideFromPlayer(c), e: sideFromEnemy(e), enemyName: e.name,
+    stats: { pAttacks: 0, pHits: 0, pDamage: 0, eAttacks: 0, eHits: 0, eDamage: 0, dodge: 0 },
+  };
+}
+function pushLog(f, text, cls) { f.log.push({ text, cls: cls || "" }); }
+/** 招式是否可用：境界门槛 + 体力/内力（内力为负表示回内力）；禁用时仍回报消耗以便示因 */
+function moveCheck(f, m) {
+  const p = f.p;
+  const costMult = p.perk ? TUNE.perkCostMult : 1;
+  const sp = Math.round(m.sp * costMult);
+  const qi = m.qi > 0 ? Math.round(m.qi * costMult) : m.qi;
+  const need = realmIndex(f.realmOf || 0);
+  if (m.realmGateIndex !== undefined && need < m.realmGateIndex) return { ok: false, why: `境界不足（需${m.realm}）`, sp, qi };
+  if (p.sp < sp) return { ok: false, why: "体力不支", sp, qi };
+  if (qi > 0 && p.qi < qi) return { ok: false, why: "内力不足", sp, qi };
+  return { ok: true, sp, qi };
+}
+function attachMoveGates(f, c) {
+  for (const m of f.p.moves) m.realmGateIndex = REALMS.findIndex((r) => r.name === m.realm);
+  f.realmOf = realmValue(c, c.mainArt);
+  return f;
+}
+/** 一次交手：攻方掷命中（可选双击制下受方再掷闪避），返回档带与是否被闪/反击 */
+function strike(f, from, to, move, hitBonus) {
+  const hitValue = from.hit + (move && move.hit ? move.hit : 0) + (hitBonus || 0) + (from.perk ? TUNE.perkHitBonus : 0);
+  const defValue = to.def + (to.defUp || 0);
+  const r = rollBand(f.rng, hitValue, defValue, TUNE);
+  let band = r.band, dodged = false, counter = false;
+  if (TUNE.doubleRoll && (r.band === "成功" || r.band === "大成功")) {
+    const d = rollBand(f.rng, defValue, hitValue, TUNE);
+    if (d.band === "大成功") { dodged = true; counter = true; band = "大失败"; }
+    else if (d.band === "成功") { dodged = true; band = "大失败"; }
+  }
+  const power = powerOf(from.str, from.real, from.weapon, move ? move.mult : 1);
+  let mult = TUNE.dmgMult[band];
+  let dmg = 0;
+  if (mult > 0) {
+    dmg = Math.max(1, Math.round(power * mult + (f.rng() * 2 - 1)));
+    if (to.defending) dmg = Math.max(1, Math.round(dmg * TUNE.defendDmgMul));
+    to.hp = Math.max(0, to.hp - dmg);
+  }
+  return { roll: r.roll, margin: r.margin, band, dodged, counter, dmg, power, hitValue, defValue };
+}
+function strikeText(f, from, to, move, res) {
+  const who = from.kind === "player" ? "你" : to.kind === "player" ? `${from.name}` : from.name;
+  const target = to.kind === "player" ? "你" : to.name;
+  const moveName = move ? `「${move.name}」` : "一记";
+  if (res.dodged) return `${from.kind === "player" ? "你" : from.name}${moveName}递出，${target}${res.counter ? "侧身闪过，反手撩了一下" : "脚步一错，闪开了"}。`;
+  if (res.band === "大失败") return `${from.kind === "player" ? "你" : from.name}${moveName}使老了——门户大开，${target}趁势反扑！`;
+  if (res.band === "失败") return `${from.kind === "player" ? "你" : from.name}${moveName}只擦着${target}的衣角（${res.dmg} 点）。`;
+  if (res.band === "大成功") return `${from.kind === "player" ? "你" : from.name}${moveName}正中要害！${target}闷哼一声，退开半步（${res.dmg} 点）。`;
+  return `${from.kind === "player" ? "你" : from.name}${moveName}得手，${target}受 ${res.dmg} 点伤。`;
+}
+function applyKnockdown(f, to, move, res) {
+  if (!move || !move.knockdown || res.band === "大失败") return false;
+  if (f.rng() < move.knockdown) {
+    to.stun = (to.stun || 0) + TUNE.knockdownStun;
+    pushLog(f, `${to.kind === "player" ? "你" : to.name}被击倒在地！`, "hit");
+    return true;
+  }
+  return false;
+}
+function endIfDown(f) {
+  if (f.e.hp <= 0) { f.outcome = "victory"; return true; }
+  if (f.p.hp <= 0) { f.outcome = "defeated"; return true; }
+  return false;
+}
+function enemyTurn(f) {
+  const e = f.e;
+  if (e.stun > 0) { e.stun -= 1; pushLog(f, `${e.name}尚未起身，只来得及护住面门。`, "miss"); return; }
+  const costMult = 1;
+  const usable = e.moves.filter((m) => e.sp >= m.sp && (m.qi > 0 ? e.qi >= m.qi : true));
+  let move = null;
+  if (usable.length > 0 && f.rng() < 0.45 && e.hp > e.hpMax * 0.25) move = usable[usable.length - 1];
+  if (e.sp < 14) {
+    e.sp = Math.min(e.spMax, e.sp + e.spRegen * 2);
+    pushLog(f, `${e.name}退开半步，喘息回力。`, "sys");
+    return;
+  }
+  const sp = move ? move.sp : TUNE.attackSp;
+  e.sp = Math.max(0, e.sp - sp);
+  if (move && move.qi > 0) e.qi = Math.max(0, e.qi - move.qi);
+  const hitBonus = -(e.enemyHitDown || 0);
+  const res = strike(f, e, f.p, move, hitBonus);
+  f.stats.eAttacks += 1; if (res.dmg > 0 && !res.dodged) { f.stats.eHits += 1; f.stats.eDamage += res.dmg; }
+  if (res.dodged) f.stats.dodge += 1;
+  pushLog(f, strikeText(f, e, f.p, move, res), res.dmg > 0 ? "hit" : "miss");
+  applyKnockdown(f, f.p, move, res);
+  if (res.counter && f.p.hp > 0) {
+    const back = strike(f, f.p, e, null, 0);
+    pushLog(f, `你趁他收势未稳，反手一击（${back.dmg} 点）。`, "hit");
+  }
+}
+/** 玩家动作：attack / move / defend / breath / flee / surrender / stand */
+function playerAct(f, c, action) {
+  if (f.outcome) return "战斗已结束";
+  const p = f.p, e = f.e;
+  pushLog(f, `—— 第 ${f.round} 回合 ——`, "sys");
+  if (p.stun > 0) {
+    p.stun -= 1;
+    pushLog(f, "你撑地起身，门户未稳。", "miss");
+  } else if (action.kind === "attack") {
+    const me = p.moves.find((m) => m.id === action.moveId);
+    if (me) {
+      const chk = moveCheck(f, me);
+      if (!chk.ok) return chk.why;
+      p.sp -= chk.sp;
+      if (chk.qi > 0) p.qi -= chk.qi; else if (chk.qi < 0) p.qi = Math.min(p.qiMax, p.qi - chk.qi);
+      if (me.defUp) p.defUp = (p.defUp || 0) + me.defUp;
+      if (me.enemyHitDown) e.enemyHitDown = Math.max(e.enemyHitDown || 0, me.enemyHitDown);
+      if (me.knockdown === undefined && me.sp === 0 && me.qi < 0) {
+        pushLog(f, `你${me.name}，气息缓缓转匀（内力回 ${-me.qi}）。`, "sys");
+      } else {
+        const res = strike(f, p, e, me, 0);
+        f.stats.pAttacks += 1;
+        if (res.dmg > 0 && !res.dodged) { f.stats.pHits += 1; f.stats.pDamage += res.dmg; }
+        pushLog(f, strikeText(f, p, e, me, res), res.dmg > 0 ? "hit" : "miss");
+        applyKnockdown(f, e, me, res);
+        if (res.counter && p.hp > 0) {
+          const back = strike(f, e, p, null, 0);
+          pushLog(f, `${e.name}反手一记，你吃了 ${back.dmg} 点。`, "hit");
+        }
+      }
+    } else {
+      p.sp = Math.max(0, p.sp - TUNE.attackSp);
+      const res = strike(f, p, e, null, 0);
+      f.stats.pAttacks += 1;
+      if (res.dmg > 0 && !res.dodged) { f.stats.pHits += 1; f.stats.pDamage += res.dmg; }
+      pushLog(f, strikeText(f, p, e, null, res), res.dmg > 0 ? "hit" : "miss");
+      if (res.counter && p.hp > 0) {
+        const back = strike(f, e, p, null, 0);
+        pushLog(f, `${e.name}反手一记，你吃了 ${back.dmg} 点。`, "hit");
+      }
+    }
+  } else if (action.kind === "defend") {
+    p.defending = true;
+    p.defUp = (p.defUp || 0) + TUNE.defendDefBonus;
+    p.sp = Math.min(p.spMax, p.sp + Math.round(TUNE.defendSp * 0.5));
+    pushLog(f, "你收招护住周身，寻隙待变。", "sys");
+  } else if (action.kind === "breath") {
+    p.sp = Math.min(p.spMax, p.sp + p.spRegen * 2);
+    p.qi = Math.min(p.qiMax, p.qi + p.qiRegen);
+    pushLog(f, `你退开半步调息（体力 +${p.spRegen * 2}、内力 +${p.qiRegen}）。`, "sys");
+  } else if (action.kind === "flee") {
+    const rate = Math.max(10, Math.min(90, 50 + Math.round((p.sp - e.sp) / 2)));
+    if (f.rng() * 100 < rate) { f.outcome = "fled"; pushLog(f, "你觑准空档夺路而逃，把那几句喝骂甩在身后。", "sys"); }
+    else { pushLog(f, `${e.name}早防着这一手，横身封住去路。`, "miss"); }
+  } else if (action.kind === "surrender") {
+    f.outcome = "captured";
+    pushLog(f, "你弃了架式，双手一摊——好汉不吃眼前亏。", "sys");
+  } else {
+    return "无此行动";
+  }
+  if (!f.outcome) endIfDown(f);
+  if (!f.outcome) {
+    enemyTurn(f);
+    endIfDown(f);
+  }
+  if (!f.outcome) {
+    p.sp = Math.min(p.spMax, p.sp + p.spRegen);
+    e.sp = Math.min(e.spMax, e.sp + e.spRegen);
+    p.qi = Math.min(p.qiMax, p.qi + p.qiRegen);
+    e.qi = Math.min(e.qiMax, e.qi + e.qiRegen);
+    p.defending = false; p.defUp = 0; e.enemyHitDown = 0;
+    f.round += 1;
+    if (f.round > 60) { f.outcome = "stalemate"; pushLog(f, "两人各自退开，谁也奈何不了谁。", "sys"); }
+  } else {
+    pushLog(f, outcomeText(f), "sys");
+  }
+  return null;
+}
+function outcomeText(f) {
+  const w = { victory: `${f.e.name}颓然坐倒——这一场，你赢了。`, defeated: "你眼前一黑，膝头一软，再撑不住。", fled: "你走了。", captured: "你被按在地上，两臂反剪。", stalemate: "两人隔开三尺，各自喘气。" };
+  return w[f.outcome] || "战斗结束";
+}
+function autoPlay(c, enemyId, seed) {
+  const f = attachMoveGates(startFight(c, enemyId, seed), c);
+  let guard = 0;
+  while (!f.outcome && guard++ < 80) {
+    const usable = f.p.moves.filter((m) => moveCheck(f, m).ok);
+    let act = { kind: "attack" };
+    if (f.p.hp < f.p.hpMax * 0.3 && f.rng() < 0.4) act = { kind: "defend" };
+    else if (usable.length > 0 && f.p.sp > 20) act = { kind: "attack", moveId: usable[0].id };
+    playerAct(f, c, act);
+  }
+  return f;
+}
+function simulate(c, enemyId, runs, baseSeed) {
+  const e = enemyById(enemyId);
+  const base = {
+    d: derived(c),
+  };
+  let wins = 0, losses = 0, fled = 0, rounds = 0;
+  const diff = base.d.hit - (e.art + TUNE.talentCoef * (e.agi - 5));
+  for (let i = 0; i < runs; i++) {
+    const f = autoPlay(c, enemyId, (baseSeed || 12345) + i * 7919);
+    if (f.outcome === "victory") wins += 1;
+    else if (f.outcome === "defeated") losses += 1;
+    else fled += 1;
+    rounds += f.round;
+  }
+  return {
+    enemy: e.name, runs, wins, losses, fled,
+    winRate: Math.round((wins / runs) * 100), avgRounds: Math.round(rounds / runs),
+    hitRate: effectiveHitRate(base.d.hit, e.art + TUNE.talentCoef * (e.agi - 5), TUNE),
+    expectedDamage: Math.round(expectedDamage(powerOf(c.talents.str, base.d.main, artById(c.mainArt) ? artById(c.mainArt).weapon : "徒手", 1), base.d.hit, e.art + TUNE.talentCoef * (e.agi - 5), TUNE) * 10) / 10,
+  };
+}
+
+/* ---------- 战败延续（失败延续：不回档、不结束） ---------- */
+function defeatConsequence(c, enemyId, rng) {
+  const e = enemyById(enemyId);
+  const heavy = c.talents.con <= 3 || rng() < 0.4;
+  const hours = heavy ? TUNE.woundHoursHeavy : TUNE.woundHoursLight;
+  const loss = Math.round(TUNE.defeatMoneyLoss[0] + rng() * (TUNE.defeatMoneyLoss[1] - TUNE.defeatMoneyLoss[0]));
+  c.wounds.push({ name: heavy ? "重伤" : "轻伤", hours, from: e.name });
+  c.money = Math.max(0, c.money - loss);
+  const cards = [
+    { title: "被路过的人拖开", text: `一个挑担的老汉把你从地上拽起来，半拖半架地送到背街。他嘴里念叨「乱世里动手，先想想家里有没有人等」，把你往墙根一放，走了。你摸出怀里的铜钱——少了 ${loss} 文。` },
+    { title: "躺了半宿才爬起来", text: `天擦黑的时候你才睁眼。${e.name}早已不见，地上的脚印往城东去了。你撑着墙根站起，胸口一阵闷痛。丢失 ${loss} 文。` },
+    { title: "有人替你出了头", text: `一伙人从巷口走过来，${e.name}啐了一口，收了刀。一个背影替你挡在前头，只说了一句「走吧」。你连他的脸都没看清。丢失 ${loss} 文。` },
+  ];
+  return { card: cards[Math.floor(rng() * cards.length)], wound: heavy ? "重伤" : "轻伤", hours, loss };
+}
+/** 战斗结算：写回经验与后果（败北给一半经验——输也长进） */
+function settleFight(c, f) {
+  const a = artById(c.mainArt);
+  const win = f.outcome === "victory";
+  const mult = win ? 1 : TUNE.defeatXpMul;
+  const artXp = Math.round((f.e.real * TUNE.fightXpArt + f.round * TUNE.fightXpRound) * mult);
+  const basicXp = Math.round(artXp * TUNE.fightXpBasic);
+  const out = { artXp: Math.max(1, artXp), basicXp: Math.max(1, basicXp), levels: [], basicLevels: [], consequence: null };
+  applyArtXp(c, c.mainArt, out.artXp, out);
+  applyBasicXp(c, a.cat, out.basicXp, out);
+  if (f.outcome === "defeated" || f.outcome === "captured") {
+    out.consequence = defeatConsequence(c, f.e.enemyId, f.rng);
+  }
+  return out;
+}
+/** 伤势随游戏时间消退（时间由上层时钟提供，这里只做推进） */
+function advanceHours(c, hours) {
+  c.hours += hours;
+  const before = c.wounds.length;
+  c.wounds = c.wounds.map((w) => Object.assign({}, w, { hours: w.hours - hours })).filter((w) => w.hours > 0);
+  return before - c.wounds.length;
+}
+
+const Martial = {
+  TUNE, TALENTS, REALMS, CURVES, ARTS, ENEMIES,
+  reqFor, xpTo, realmOf, realmIndex, nextRealm, basicBonus, insightMult, artById, enemyById,
+  newChar, artLevel, basicLevel, realOf, realmOfArt, realmValue, hasPerk, eff, derived,
+  powerOf, powerBreakdown, mulberry32, rollBand, hitRate, hitRateDouble, effectiveHitRate, bandProbs, expectedDamage, outsideCheck,
+  trainSession, applyArtXp, applyBasicXp, hoursTo, hoursToBasic, sessionsToReal,
+  sideFromPlayer, sideFromEnemy, startFight, attachMoveGates, moveCheck, strike, playerAct, autoPlay, simulate,
+  defeatConsequence, settleFight, advanceHours,
+};
+if (typeof globalThis !== "undefined") globalThis.Martial = Martial;
+</script>
+
+<!-- ================================================================ UI -->
+<script>
+/* ================================================================
+ * 一次性 UI 壳（丢弃物；原型结束就删）
+ * ================================================================ */
+const UI = (() => {
+  let C = Martial.newChar();
+  let F = null;
+  let rng = Martial.mulberry32(20260915);
+  let enemyId = "po";
+  let curTab = 0;
+  let lastTrainMsg = "—";
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s);
+  const fmt = (n) => (Math.round(n * 10) / 10).toString();
+  const hoursText = (h) => `${Math.round(h)} 小时（约 ${fmt(h / 16)} 个白天）`;
+  const pct = (n) => `${n}%`;
+
+  function bar(cls, cur, max) {
+    const p = Math.max(0, Math.min(100, (cur / max) * 100));
+    return `<div class="bar ${cls}"><span style="width:${p}%"></span></div>`;
+  }
+
+  /* ---------------- ① 人物 ---------------- */
+  function renderTalents() {
+    const t = C.talents;
+    const total = t.str + t.agi + t.ins + t.con + t.luk;
+    $("talentRows").innerHTML = Martial.TALENTS.map((x) => `
+      <div class="kv">
+        <span class="k">${x.name} <span class="muted">· ${x.duty}</span></span>
+        <span class="v">
+          <button onclick="UI.talent('${x.key}',-1)">−</button>
+          <b style="display:inline-block;width:22px;text-align:center">${t[x.key]}</b>
+          <button onclick="UI.talent('${x.key}',1)">＋</button>
+        </span>
+      </div>`).join("") + `<div class="kv" style="border-top:1px solid var(--line);margin-top:5px;padding-top:5px">
+        <span class="k">合计</span><span class="v ${total === 25 ? "good" : "on"}">${total} / 25</span></div>`;
+    $("talentHint").textContent = `悟性 ${t.ins} → 修习经验倍率 ×${Martial.insightMult(t.ins)}。根骨 ${t.con} 决定能开哪几门内功（玄阴真炁 需 6）。`;
+  }
+  function renderDerive() {
+    const d = Martial.derived(C);
+    const rows = [
+      ["主战武学", C.mainArt ? `${Martial.artById(C.mainArt).name}（${Martial.artById(C.mainArt).cat}·${Martial.artById(C.mainArt).curve}）` : "（空）"],
+      ["具体武学等级", C.mainArt ? String(Martial.artLevel(C, C.mainArt)) : "—"],
+      ["门类基本功", C.mainArt ? `${Martial.basicLevel(C, Martial.artById(C.mainArt).cat)}（加成 +${Martial.basicBonus(Martial.basicLevel(C, Martial.artById(C.mainArt).cat))}）` : "—"],
+      ["实际武学值", `<b>${d.main}</b>`],
+      ["境界", Martial.realmOfArt(C, C.mainArt) + (Martial.hasPerk(C, C.mainArt) ? " · 贯通" : "")],
+      ["命中检定值", `${d.hit} = 实际 ${d.main} + 2×(身法 ${C.talents.agi} − 5)`],
+      ["防御值", `${d.def} = ⌊(主武学 ${d.main} + ${C.qinggongArt ? `轻功 ${d.qing}` : "轻功 0（未习，按主武学顶）"}) / 2⌋ + 2×(身法 − 5)`],
+      ["气血上限", `${d.hpMax} = 40 + 根骨 ${C.talents.con}×6 + ⌊内功 ${d.nei}×0.3⌋`],
+      ["体力上限", `${d.spMax} = 50 + (膂力 ${C.talents.str} + 身法 ${C.talents.agi})×3`],
+      ["内力上限 / 回复", `${d.qiMax} / 回合 +${d.qiRegen}`],
+      ["伤害基数", (() => { const w = Martial.artById(C.mainArt) ? Martial.artById(C.mainArt).weapon : "徒手"; const b = Martial.powerBreakdown(C.talents.str, d.main, w); return `${w} ${b.weapon} + 膂力 ${b.str} + 武学 ${b.art} = ${b.weapon + b.str + b.art}`; })()],
+      ["伤势 / 效率", C.wounds.length ? `${C.wounds.map((w) => `${w.name}(${Math.round(w.hours)}h)`).join("、")} → 效率 ×${Martial.eff(C)}` : "无 → 效率 ×1"],
+      ["游戏内时数", `${Math.round(C.hours)} 小时`],
+      ["身上银钱", `${C.money} 文`],
+    ];
+    $("derivePanel").innerHTML = rows.map((r) => `<div class="kv"><span class="k">${r[0]}</span><span class="v">${r[1]}</span></div>`).join("");
+  }
+  function renderArtPickers() {
+    const cats = ["拳脚", "刀法", "轻功", "内功"];
+    $("artPickers").innerHTML = cats.map((cat) => {
+      const slot = cat === "轻功" ? "qinggongArt" : cat === "内功" ? "neigongArt" : "mainArt";
+      const list = Martial.ARTS.filter((a) => a.cat === cat);
+      return `<div class="card"><div class="cardtitle">${cat}${slot === "mainArt" ? "（主战）" : slot === "qinggongArt" ? "（轻功槽）" : "（内功槽）"}</div>
+        ${list.map((a) => {
+          const gate = a.conGate > 0 && C.talents.con < a.conGate;
+          const lv = Martial.artLevel(C, a.id), basic = Martial.basicLevel(C, cat);
+          const on = C[slot] === a.id;
+          return `<div class="kv" style="align-items:flex-start">
+            <span class="k" style="white-space:normal">
+              <b>${a.name}</b> <span class="tag ${a.curve === "易学难精" ? "good" : a.curve === "艰深" ? "bad" : ""}">${a.curve}</span>${gate ? `<span class="tag bad">根骨＜${a.conGate}</span>` : ""}
+              <div class="hint">lv ${lv} · 境界 ${Martial.realmOf(lv)} · 实际 ${Martial.realOf(C, a.id)}（基本功 ${basic} 加成 +${Martial.basicBonus(basic)}）</div>
+              <div class="hint">${a.desc}</div>
+            </span>
+            <span class="v">${slot === "mainArt" || !on ? `<button ${gate && cat === "内功" ? "disabled" : ""} onclick="UI.selectArt('${slot}','${a.id}')">${on ? "已选" : "选用"}</button>` : `<button onclick="UI.selectArt('${slot}',null)">撤下</button>`}</span>
+          </div>`;
+        }).join("")}
+      </div>`;
+    }).join("");
+  }
+
+  /* ---------------- ② 修炼 ---------------- */
+  function renderTrain() {
+    const a = Martial.artById(C.mainArt);
+    const st = C.arts[C.mainArt];
+    const cat = a.cat, bist = C.basics[cat];
+    const gate = a.conGate > 0 && C.talents.con < a.conGate;
+    $("trainControls").innerHTML = `
+      <div class="kv"><span class="k">修炼对象（主战武学）</span><span class="v">${a.name} · ${a.curve}${gate ? " · 根骨不足" : ""}</span></div>
+      <div class="kv"><span class="k">一段基础经验</span><span class="v">⌊30 × 悟性 ×${Martial.insightMult(C.talents.ins)} × 效率 ×${Martial.eff(C)}⌋，至少 1</span></div>
+      <div class="btns">
+        <button class="primary" onclick="UI.train(false,false,1)">修炼一段（2h）</button>
+        <button onclick="UI.train(false,false,4)">修炼半日（8h）</button>
+        <button onclick="UI.train(false,true,1)">请教练一段（×1.5，50 文）</button>
+        <button onclick="UI.trainToRealm()">练到下一境界</button>
+        <button onclick="UI.train(true,false,1)">专项修炼基本功一段（不吃悟性）</button>
+        <button onclick="UI.advance(24)">静养一日（伤势消退）</button>
+      </div>
+      <div id="trainOut" class="hint">${lastTrainMsg}</div>`;
+    const need = st.level < 100 ? Martial.reqFor(st.level + 1, a.curve) : 0;
+    const bNeed = bist.level < 100 ? Martial.reqFor(bist.level + 1, "平稳") : 0;
+    $("trainProgress").innerHTML = `
+      <div class="kv"><span class="k">${a.name} 等级 / 境界</span><span class="v"><b>${st.level}</b> · ${Martial.realmOf(st.level)}（下一档 ${Martial.nextRealm(st.level) ? Martial.nextRealm(st.level).name + " @" + Martial.nextRealm(st.level).level : "已至化境"}）</span></div>
+      ${bar("sp", st.xp, need || 1)}
+      <div class="kv"><span class="k">本级经验</span><span class="v">${st.xp} / ${need || "—"}</span></div>
+      <div class="kv"><span class="k">${cat}基本功 等级</span><span class="v"><b>${bist.level}</b> · ${Martial.realmOf(bist.level)}</span></div>
+      ${bar("qi", bist.xp, bNeed || 1)}
+      <div class="kv"><span class="k">本级经验</span><span class="v">${bist.xp} / ${bNeed || "—"}</span></div>
+      <div style="border-top:1px solid var(--line);margin:6px 0;padding-top:6px"></div>
+      <div class="kv"><span class="k">实际武学值</span><span class="v good"><b>${Martial.realOf(C, C.mainArt)}</b> = min(100, ${st.level} + ${Martial.basicBonus(bist.level)})</span></div>
+      <div class="kv"><span class="k">到各档还差</span><span class="v">${Martial.REALMS.filter((r) => r.level > st.level).map((r) => `${r.name} ${hoursText(Martial.hoursTo(C, C.mainArt, r.level))}`).join("<br>")}</span></div>
+      <div class="hint">基本功靠修炼顺带积累（每段 +10，不吃悟性），专项修炼每段 +25。基本功 100 → 加成 +40（99 级只有 +19）。</div>`;
+  }
+  function doTrain(dedicated, coach, sessions) {
+    const lines = [];
+    if (coach && C.money < 50 * sessions) { lines.push("银钱不足（请不起教练，本段按自己练结算）"); }
+    const useCoach = coach && C.money >= 50 * sessions;
+    if (useCoach) C.money -= 50 * sessions;
+    for (let i = 0; i < sessions; i++) {
+      const out = Martial.trainSession(C, C.mainArt, { dedicated, coach: useCoach });
+      if (out.blocked) { lines.push(`被拦住：${out.blocked}`); break; }
+      lines.push(`一段（2h）：${dedicated ? "只练基本功" : `武学经验 +${out.artXp}（悟性 ×${Martial.insightMult(C.talents.ins)}）`} · 基本功经验 +${out.basicXp}`
+        + (out.levels.length ? ` · 武学升至 ${out.levels[out.levels.length - 1]}（${Martial.realmOf(out.levels[out.levels.length - 1])}）` : "")
+        + (out.basicLevels.length ? ` · 基本功升至 ${out.basicLevels[out.basicLevels.length - 1]}` : ""));
+    }
+    lastTrainMsg = lines.slice(-6).join("<br>") || "—";
+    $("trainOut").innerHTML = lastTrainMsg;
+    renderAll();
+  }
+  function trainToRealm() {
+    const a = Martial.artById(C.mainArt);
+    const nx = Martial.nextRealm(C.arts[C.mainArt].level);
+    if (!nx) { lastTrainMsg = "已是化境。"; $("trainOut").textContent = lastTrainMsg; return; }
+    const h = Martial.hoursTo(C, C.mainArt, nx.level);
+    const sessions = Math.max(1, Math.ceil(h / Martial.TUNE.sessionHours));
+    if (sessions > 4000) { lastTrainMsg = `到 ${nx.name} 还需 ${hoursText(h)}——原型里就不真跑了（数字已在上方）。`; renderAll(); return; }
+    lastTrainMsg = `练到「${nx.name}」：${sessions} 段 = ${hoursText(sessions * 2)}`;
+    doTrain(false, false, sessions);
+  }
+
+  function renderCurveTables() {
+    // 曲线图：累计经验 vs 等级
+    const W = 520, H = 210, pad = 34;
+    const maxY = Martial.xpTo(100, "艰深");
+    const xs = (l) => pad + (l / 100) * (W - pad - 8);
+    const ys = (v) => H - pad - (v / maxY) * (H - pad - 14);
+    const colors = { "易学难精": "#8b3a2f", "平稳": "#2b5a6a", "艰深": "#7a8b3a" };
+    let svg = `<svg width="100%" viewBox="0 0 ${W} ${H}" style="font-family:inherit;font-size:10px">`;
+    for (let g = 0; g <= 4; g++) {
+      const v = (maxY / 4) * g;
+      svg += `<line x1="${pad}" y1="${ys(v)}" x2="${W - 8}" y2="${ys(v)}" stroke="#ddd6c8" stroke-width="1"/>`;
+      svg += `<text x="2" y="${ys(v) + 3}" fill="#8a8375">${Math.round(v)}</text>`;
+    }
+    Martial.REALMS.forEach((r, i) => {
+      svg += `<line x1="${xs(r.level)}" y1="14" x2="${xs(r.level)}" y2="${H - pad}" stroke="#eee7d8" stroke-dasharray="3 3"/>`;
+      const last = i === Martial.REALMS.length - 1;
+      svg += `<text x="${last ? xs(r.level) - 2 : xs(r.level) + 2}" y="${H - pad + 11}" fill="#8a8375" text-anchor="${last ? "end" : "start"}">${r.name}</text>`;
+    });
+    for (const [curve, color] of Object.entries(colors)) {
+      const pts = Array.from({ length: 101 }, (_, l) => `${xs(l)},${ys(Martial.xpTo(l, curve))}`).join(" ");
+      svg += `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2"/>`;
+    }
+    svg += "</svg>";
+    const legend = Object.entries(colors).map(([c, col]) => `<span style="margin-right:14px"><span style="display:inline-block;width:16px;height:3px;background:${col};vertical-align:middle"></span> ${c}（到 100 级累计 ${Martial.xpTo(100, c)} 经验）</span>`).join("");
+    $("curveChart").innerHTML = svg + `<div class="hint" style="padding:2px 8px 2px">${legend}</div>
+      <div class="hint" style="padding:0 8px 6px">纵轴＝累计经验（段数 × 30 经验），横轴＝等级。线越陡＝越贵，越平＝越便宜。</div>`;
+
+    const rows = [30, 55, 80, 100];
+    let html = `<table><tr><th>曲线</th>${rows.map((r) => `<th class="num">到 ${Martial.realmOf(r)}(${r})</th>`).join("")}<th>形状</th></tr>`;
+    for (const curve of Object.keys(Martial.CURVES)) {
+      html += `<tr><td>${curve}</td>${rows.map((r) => `<td class="num">${Martial.xpTo(r, curve)}</td>`).join("")}<td>${Martial.CURVES[curve].tag}</td></tr>`;
+    }
+    html += `</table>`;
+    html += `<div class="hint" style="margin:5px 0">上表＝累计经验（升到该等级所需的总经验）；下表＝新手角色（该武学 0 级、无伤、不吃教练）一路升到该档的到手小时数。</div>`;
+    html += `<table><tr><th>到该档的手感</th>${rows.map((r) => `<th class="num">${Martial.realmOf(r)}(${r})</th>`).join("")}</tr>`;
+    const fresh = (ins, artId) => { const c = Martial.newChar(); c.talents.ins = ins; c.mainArt = artId || "dao.cangyan"; return c; };
+    for (const ins of [1, 5, 10]) {
+      html += `<tr><td>悟性 ${ins}（×${Martial.insightMult(ins)}）· 平稳</td>${rows.map((r) => `<td class="num">${hoursText(Martial.hoursTo(fresh(ins), "dao.cangyan", r))}</td>`).join("")}</tr>`;
+    }
+    for (const curve of Object.keys(Martial.CURVES)) {
+      const artId = Martial.ARTS.find((a) => a.curve === curve).id;
+      const c = fresh(5, artId);
+      html += `<tr><td>悟性 5 · ${curve}（${Martial.artById(artId).name}）</td>${rows.map((r) => `<td class="num">${hoursText(Martial.hoursTo(c, artId, r))}</td>`).join("")}</tr>`;
+    }
+    html += `<tr><td>基本功专项（不吃悟性，+25/段）</td>${rows.map((r) => `<td class="num">${hoursText((Martial.xpTo(r, "平稳") / 25) * 2)}</td>`).join("")}</tr></table>`;
+    $("curveTable").innerHTML = html;
+  }
+
+  /* ---------------- ③ 战斗 ---------------- */
+  function renderEnemyPicker() {
+    $("enemyPicker").innerHTML = Martial.ENEMIES.map((e) => `
+      <div class="kv" style="align-items:flex-start">
+        <span class="k" style="white-space:normal"><b>${e.name}</b> <span class="tag">武学 ${e.art} · 身法 ${e.agi}</span>
+          <div class="hint">${e.desc}</div>
+          <div class="hint">气血 ${e.hp} / 体力 ${e.sp} / 内力 ${e.qi} · 一击基数 ${Martial.powerBreakdown(e.str, e.art, e.weapon).weapon + Martial.powerBreakdown(e.str, e.art, e.weapon).str + Martial.powerBreakdown(e.str, e.art, e.weapon).art}</div>
+        </span>
+        <span class="v"><button ${enemyId === e.id ? "disabled" : ""} onclick="UI.pickEnemy('${e.id}')">${enemyId === e.id ? "已选" : "选他"}</button></span>
+      </div>`).join("");
+  }
+  function renderPcPanel() {
+    const d = Martial.derived(C);
+    const e = Martial.enemyById(enemyId);
+    const edef = e.art + Martial.TUNE.talentCoef * (e.agi - 5);
+    const hr = Martial.effectiveHitRate(d.hit, edef, Martial.TUNE);
+    const ehr = Martial.effectiveHitRate(edef, d.def, Martial.TUNE);
+    const a = Martial.artById(C.mainArt);
+    const power = Martial.powerOf(C.talents.str, d.main, a.weapon, 1);
+    const edmg = Martial.expectedDamage(power, d.hit, edef, Martial.TUNE);
+    const epower = Martial.powerOf(e.str, e.art, e.weapon, 1);
+    const edmgIn = Martial.expectedDamage(epower, edef, d.def, Martial.TUNE);
+    const probs = Martial.bandProbs(d.hit - edef, Martial.TUNE);
+    const pRows = ["大成功", "成功", "失败", "大失败"].map((b) => `<span class="tag ${b === "大失败" ? "bad" : b === "大成功" ? "big" : ""}">${b} ${Math.round(probs[b] * 100)}%</span>`).join("");
+    $("pcPanel").innerHTML = `
+      <div class="kv"><span class="k">我一击的四档分布</span><span class="v">${pRows}</span></div>
+      <div class="kv"><span class="k">我方命中率 vs ${e.name}</span><span class="v good"><b>${pct(hr)}</b>（${Martial.TUNE.doubleRoll ? "双击制" : "单掷"}；边距 ${d.hit - edef >= 0 ? "+" : ""}${d.hit - edef}）</span></div>
+      <div class="kv"><span class="k">对方命中率 vs 我</span><span class="v on">${pct(ehr)}</span></div>
+      <div class="kv"><span class="k">我一击伤害期望</span><span class="v">${fmt(edmg)}（含档带加权；成功档 ${Math.round(power)}）</span></div>
+      <div class="kv"><span class="k">对方一击伤害期望</span><span class="v">${fmt(edmgIn)}（成功档 ${Math.round(epower)}）</span></div>
+      <div class="kv"><span class="k">我能挨几下</span><span class="v">${fmt(d.hpMax / Math.max(1, edmgIn))} 下</span></div>
+      <div class="kv"><span class="k">他得挨几下</span><span class="v">${fmt(e.hp / Math.max(1, edmg))} 下</span></div>
+      <div class="hint">${Martial.TUNE.doubleRoll ? "双击制：攻方先掷命中，受方再掷闪避——命中率约等于 p×(1−p)，回合数明显拉长。" : "单掷：攻方一次检定里已经含了对方的闪避（难度＝对方防御值）。"}</div>`;
+  }
+  function renderFight() {
+    if (!F) { $("fpHp").innerHTML = "尚未起手。"; $("feHp").innerHTML = "—"; $("fightBtns").innerHTML = ""; return; }
+    const side = (s) => `
+      <div class="kv"><span class="k">${s.name} 气血</span><span class="v">${s.hp} / ${s.hpMax}</span></div>${bar("hp", s.hp, s.hpMax)}
+      <div class="kv"><span class="k">体力</span><span class="v">${s.sp} / ${s.spMax}</span></div>${bar("sp", s.sp, s.spMax)}
+      <div class="kv"><span class="k">内力</span><span class="v">${s.qi} / ${s.qiMax}</span></div>${bar("qi", s.qi, s.qiMax)}
+      <div class="kv"><span class="k">命中 / 防御</span><span class="v">${s.hit} / ${s.def}${s.defUp ? ` (+${s.defUp})` : ""}${s.stun ? " · 倒地" : ""}</span></div>`;
+    $("fpHp").innerHTML = side(F.p) + `<div class="kv"><span class="k">状态</span><span class="v">${F.p.perk ? "贯通（消耗 -25%、命中 +5）" : "—"}${F.p.defending ? " · 守势" : ""}</span></div>`;
+    $("feHp").innerHTML = side(F.e) + `<div class="kv"><span class="k">状态</span><span class="v">${F.e.enemyHitDown ? `命中 −${F.e.enemyHitDown}` : "—"}${F.e.stun ? " · 倒地" : ""}</span></div>`;
+    const btns = [];
+    btns.push(`<button class="primary" onclick="UI.act('attack')">普通一击（体力 ${Martial.TUNE.attackSp}）</button>`);
+    for (const m of F.p.moves) {
+      const chk = Martial.moveCheck(F, m);
+      btns.push(`<button ${chk.ok ? "" : "disabled"} onclick="UI.act('attack','${m.id}')">${m.name}<span class="hint">（${chk.ok ? "" : "禁用：" + chk.why + " · "}${m.realm}档 · 体${chk.sp}／内${chk.qi}${chk.qi < 0 ? "（回）" : ""}${m.note ? " · " + m.note : ""}）</span></button>`);
+    }
+    btns.push(`<button onclick="UI.act('defend')">守势（防御 +${Martial.TUNE.defendDefBonus}，伤减半）</button>`);
+    btns.push(`<button onclick="UI.act('breath')">调息</button>`);
+    btns.push(`<button onclick="UI.act('flee')">夺路而逃</button>`);
+    btns.push(`<button class="warn" onclick="UI.act('surrender')">束手就擒</button>`);
+    $("fightBtns").innerHTML = F.outcome ? `<span class="hint">战斗已结束（${F.outcome}）。再打请按「起手」。</span>` : btns.join("");
+    $("fightLog").innerHTML = F.log.slice(-60).reverse().map((l) => `<div class="entry ${l.cls}">${l.text}</div>`).join("");
+    renderPcPanel();
+  }
+  function renderSim(res) {
+    if (!res) { $("simOut").innerHTML = ""; return; }
+    $("simOut").innerHTML = `<div class="verdict">自动 ${res.runs} 场 vs ${res.enemy}：胜 ${res.wins} / 败 ${res.losses} / 未决 ${res.fled} → <b>胜率 ${res.winRate}%</b>，平均 ${res.avgRounds} 回合，单掷命中率 ${res.hitRate}%，一击期望 ${res.expectedDamage}。</div>`;
+  }
+
+  /* ---------------- ④ 数值台 ---------------- */
+  function renderTables() {
+    $("realmTable").innerHTML = `<table><tr><th>境界</th><th class="num">起始等级</th><th>机制作用</th></tr>` +
+      Martial.REALMS.map((r) => `<tr><td><b>${r.name}</b></td><td class="num">${r.level}</td><td>${({
+        "未入门": "无——招式未开", "初窥": "能用该武学最粗的一手（无招式）", "小成": "第一档招式解锁", "熟练": "第二档招式解锁",
+        "精通": "第三档招式解锁", "化境": "仅在 100 级取得；顶级招式已在精通档给完，化境 = 数值封顶 + 名分",
+      })[r.name]}</td></tr>`).join("") + `</table>
+      <div class="hint" style="margin-top:5px">默认基准＝<b>具体武学等级</b>（与 CONTEXT.md「境界是对武学熟练度的展示」一致，也让"基本功养数值、具体武学开招式"两层各有职责）。参数条可切到"按实际武学值"看另一条路。</div>`;
+    const rows = [];
+    for (const b of [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 99, 100]) rows.push(b);
+    $("basicTable").innerHTML = `<table><tr><th class="num">基本功等级</th>${rows.map((b) => `<th class="num">${b}</th>`).join("")}</tr>
+      <tr><td>加成</td>${rows.map((b) => `<td class="num">${Martial.basicBonus(b)}</td>`).join("")}</tr>
+      <tr><td>具体武学 60 时的实际值</td>${rows.map((b) => `<td class="num">${Math.min(100, 60 + Martial.basicBonus(b))}</td>`).join("")}</tr>
+      <tr><td>具体武学 40 时的实际值</td>${rows.map((b) => `<td class="num">${Math.min(100, 40 + Martial.basicBonus(b))}</td>`).join("")}</tr></table>
+      <div class="hint" style="margin-top:5px">99 → 100 是断崖：加成由 +19 跳到 +40（1 级换 21 点实际值，跨一整档境界）。这就是"基本功 100 级质变"的落点。</div>`;
+    let t = `<table><tr><th>等级段</th>${Object.keys(Martial.CURVES).map((c) => `<th class="num">${c}</th>`).join("")}</tr>`;
+    const bands = [["1–20", 1, 20], ["21–40", 21, 40], ["41–60", 41, 60], ["61–80", 61, 80], ["81–99", 81, 99], ["100（关口）", 100, 100]];
+    for (const [label, lo, hi] of bands) {
+      t += `<tr${hi === 100 ? ' class="hi"' : ""}><td>${label}</td>${Object.keys(Martial.CURVES).map((c) => `<td class="num">${Martial.reqFor(lo, c)}</td>`).join("")}</tr>`;
+    }
+    t += `<tr><td>累计</td>${Object.keys(Martial.CURVES).map((c) => `<td class="num">${Martial.xpTo(100, c)}</td>`).join("")}</tr>`;
+    t += `</table><div class="hint" style="margin-top:5px">表里是"升到该级所需经验"；存档只存等级 + 当前级经验，曲线只决定下一级需求（#18）。</div>`;
+    $("xpTable").innerHTML = t;
+
+    $("formulaTable").innerHTML = `<table>
+      <tr><th>项</th><th>公式</th><th>读谁</th></tr>
+      <tr><td>修习经验</td><td>⌊30 × 悟性倍率 × 效率 × 教练⌋，至少 1</td><td>悟性（只作用于具体武学）</td></tr>
+      <tr><td>基本功经验</td><td>顺带 +10／专项 +25（一段 2h）× 效率 × 教练，<b>不吃悟性</b></td><td>时间</td></tr>
+      <tr><td>实际武学值</td><td>min(100, 具体武学 + ⌊20 × (基本功/100)²⌋)，基本功 100 时 +40</td><td>两层</td></tr>
+      <tr><td>命中检定值</td><td>实际武学值 + 2×(身法 − 5) + 招式命中修正 (+5 若贯通)</td><td>实际值 · 身法</td></tr>
+      <tr><td>防御值（闪避）</td><td>⌊(主战实际值 + 轻功实际值) / 2⌋ + 2×(身法 − 5)，守势再 +15</td><td>实际值 · 身法</td></tr>
+      <tr><td>命中判定</td><td>d100 + 命中检定值 vs 防御值；差 ≥+30 大成功 / ≥0 成功 / &gt;−30 失败 / ≤−30 大失败</td><td>#16 档带</td></tr>
+      <tr><td>伤害</td><td>(兵刃基数 + ⌊膂力×0.6⌋ + ⌊实际值×0.15⌋) × 招式倍率 × 档带倍率(1.5/1.0/0.35/0)</td><td>膂力 · 实际值</td></tr>
+      <tr><td>气血上限</td><td>40 + 根骨×6 + ⌊内功实际值×0.3⌋</td><td>根骨</td></tr>
+      <tr><td>体力上限 / 回复</td><td>50 + (膂力+身法)×3 / 3 + ⌊膂力/4⌋</td><td>膂力 · 身法</td></tr>
+      <tr><td>内力上限 / 回复</td><td>根骨×4 + ⌊内功实际值×0.5⌋ / 1 + ⌊根骨/4⌋</td><td>根骨 · 内功</td></tr>
+      <tr><td>招式门槛</td><td>境界（具体武学 30/55/80）+ 体力 + 内力（内力不足即禁用示因）</td><td>具体武学 · 根骨</td></tr>
+      <tr><td>实战经验</td><td>(对手武学值×0.5 + 回合数×2) ×（胜 1.0 / 败 0.5）；基本功另得 40%</td><td>对手强度</td></tr>
+      <tr><td>战败后果</td><td>气血归 1、轻伤 8h／重伤 24h（训练效率 ×0.5）、失财 5～25 文、剧情后续卡</td><td>失败延续</td></tr>
+    </table>`;
+    renderTuneEditor();
+  }
+  function renderTuneEditor() {
+    const T = Martial.TUNE;
+    $("tuneEditor").innerHTML = `
+      <div class="grid g3">
+        <div class="card"><div class="cardtitle">检定</div>
+          <div class="kv"><span class="k">大成功阈值</span><span class="v"><input type="number" id="tGreat" value="${T.bandGreat}" style="width:56px"></span></div>
+          <div class="kv"><span class="k">大失败阈值</span><span class="v"><input type="number" id="tFail" value="${T.bandFail}" style="width:56px"></span></div>
+          <div class="kv"><span class="k">命中率上/下限</span><span class="v"><input type="number" id="tClamp0" value="${T.hitClamp[0]}" style="width:44px"> / <input type="number" id="tClamp1" value="${T.hitClamp[1]}" style="width:44px"></span></div>
+        </div>
+        <div class="card"><div class="cardtitle">成长</div>
+          <div class="kv"><span class="k">每段经验（2h）</span><span class="v"><input type="number" id="tXp" value="${T.xpPerSession}" style="width:56px"></span></div>
+          <div class="kv"><span class="k">基本功顺带／专项</span><span class="v"><input type="number" id="tBx" value="${T.basicXpByArt}" style="width:44px"> / <input type="number" id="tBxd" value="${T.basicXpDedicated}" style="width:44px"></span></div>
+          <div class="kv"><span class="k">教练加成</span><span class="v"><input type="number" step="0.1" id="tCoach" value="${T.coachMult}" style="width:56px"></span></div>
+        </div>
+        <div class="card"><div class="cardtitle">伤害与派生</div>
+          <div class="kv"><span class="k">膂力系数</span><span class="v"><input type="number" step="0.05" id="tStr" value="${T.dmgStrCoef}" style="width:56px"></span></div>
+          <div class="kv"><span class="k">武学系数</span><span class="v"><input type="number" step="0.05" id="tArt" value="${T.dmgArtCoef}" style="width:56px"></span></div>
+          <div class="kv"><span class="k">根骨→气血</span><span class="v"><input type="number" id="tCon" value="${T.hpPerCon}" style="width:56px"></span></div>
+        </div>
+      </div>
+      <div class="btns"><button class="primary" onclick="UI.applyTune()">套用</button><button onclick="UI.resetTune()">还原默认</button></div>`;
+  }
+  function applyTune() {
+    const T = Martial.TUNE;
+    const num = (id, dflt) => { const v = parseFloat($(id).value); return isNaN(v) ? dflt : v; };
+    T.bandGreat = num("tGreat", T.bandGreat);
+    T.bandFail = num("tFail", T.bandFail);
+    T.hitClamp = [num("tClamp0", T.hitClamp[0]), num("tClamp1", T.hitClamp[1])];
+    T.xpPerSession = num("tXp", T.xpPerSession);
+    T.basicXpByArt = num("tBx", T.basicXpByArt);
+    T.basicXpDedicated = num("tBxd", T.basicXpDedicated);
+    T.coachMult = num("tCoach", T.coachMult);
+    T.dmgStrCoef = num("tStr", T.dmgStrCoef);
+    T.dmgArtCoef = num("tArt", T.dmgArtCoef);
+    T.hpPerCon = num("tCon", T.hpPerCon);
+    renderAll();
+  }
+
+  /* ---------------- ⑤ 验证 ---------------- */
+  function renderScenarios() {
+    const mk = (ins) => { const c = Martial.newChar(); c.talents = { str: 6, agi: 5, ins, con: 8, luk: 5 }; return c; };
+    // ① 低天赋：同样的目标，悟性 1 / 5 / 10 各自要多少时间（含顺带积累的基本功）
+    const reach = [1, 5, 10].map((ins) => Object.assign({ ins }, Martial.sessionsToReal(mk(ins), "dao.cangyan", 55)));
+    const toArt55 = (ins) => Martial.hoursTo(mk(ins), "dao.cangyan", 55);
+    const dullBasicHours = Martial.hoursToBasic(mk(1), "刀法", 100);
+    const dullArt60 = Martial.hoursTo(mk(1), "dao.cangyan", 60);
+    // ② 基本功 100
+    const at99 = Math.min(100, 60 + Martial.basicBonus(99));
+    const at100 = Math.min(100, 60 + Martial.basicBonus(100));
+    // ③ 曲线：悟性 5、同样投入小时数，各曲线落在哪一档
+    const per = Math.round(30 * Martial.insightMult(5));
+    const atHours = (curve, hours) => {
+      const xp = (hours / 2) * per;
+      let lv = 0;
+      while (lv < 100 && Martial.xpTo(lv + 1, curve) <= xp) lv += 1;
+      return { lv, realm: Martial.realmOf(lv) };
+    };
+    const checkpoints = [40, 100, 200, 300];
+    $("scenarios").innerHTML = `
+      <div class="scen">
+        <b>① 低天赋可成长</b> <span class="hint">悟性只管"具体武学"的速度，基本功不吃悟性——所以笨人靠时间与基本功补回数值。</span>
+        <div class="st"><span class="n">对照</span><span>同一个目标「<b>实际武学值 55（熟练）</b>」，一路只修该武学（含顺带积累的基本功）：${reach.map((r) => `悟性 ${r.ins} → ${hoursText(r.hours)}（具体 ${r.level}＋基本功 ${r.basic}）`).join("；")}。最慢与最快相差约 ${fmt(reach[reach.length - 1].hours / reach[0].hours)} 倍。</span></div>
+        <div class="st"><span class="n">纯练武学</span><span>若只看「具体武学练到 55」所需：悟性 1 → ${hoursText(toArt55(1))}，悟性 10 → ${hoursText(toArt55(10))}。</span></div>
+        <div class="st"><span class="n">补回</span><span>悟性 1 的人专项修基本功到 100 需 ${hoursText(dullBasicHours)}，再把具体武学练到 60 需 ${hoursText(dullArt60)}——此后实际武学值就是 <b>100</b>（60＋40），只是招式停在"熟练"档。</span></div>
+        <div class="st"><span class="n">结论</span><span>低天赋不是"练不动"：同一目标多花两倍多时间，且数值封顶走基本功通道、招式档位仍要靠具体武学。</span></div>
+        <div class="verdict">可玩性判断：这个差距是否合适？（数值台的「每段经验」「基本功经验」就是唯一的调档旋钮）</div>
+      </div>
+      <div class="scen">
+        <b>② 基本功 100 级质变</b> <span class="hint">99 → 100 的加成 +19 → +40。</span>
+        <div class="st"><span class="n">数</span><span>具体武学 60 时：基本功 99 → 实际 <b>${at99}</b>（熟练）；基本功 100 → 实际 <b>${at100}</b>（数值封顶）。一级之差 = ${at100 - at99} 点实际值。</span></div>
+        <div class="st"><span class="n">感</span><span>把主战武学到 60 左右、基本功刷到 100 再打一场教场师兄：命中率与伤害期望会直接跳一档（战斗页的"四档分布/伤害期望"会变）。</span></div>
+        <div class="verdict">参数条「贯通」开关：关掉就只剩纯数值质变；打开再送"该门类招式消耗 −25%、命中 +5"。要不要这一层？</div>
+      </div>
+      <div class="scen">
+        <b>③ 三类曲线手感</b> <span class="hint">悟性 5、同样投入的小时数下，各曲线落在哪一档（×${per} 经验/段）。</span>
+        <div class="st"><span class="n">表</span><span>${Object.keys(Martial.CURVES).map((c) => `${c}：` + checkpoints.map((hh) => `${hh}h → lv ${atHours(c, hh).lv}(${atHours(c, hh).realm})`).join("、")).join("<br>")}</span></div>
+        <div class="st"><span class="n">读法</span><span>"易学难精"前 100 小时一路领先，但 81～99 段每级要 95，最后一级要 500——200 小时时反而卡在精通；"艰深"开头最慢，81 级后每级只要 52，后劲反超；"平稳"总成本最低，${checkpoints[checkpoints.length - 1]} 小时就摸到化境。</span></div>
+        <div class="verdict">要判断的是：这个"平稳＝性价比之王"的结论可接受吗？要么接受，要么按曲线给封顶特权（例如"易学难精"100 级多给一招），要么把三条的总成本拉平。</div>
+      </div>
+      <div class="scen">
+        <b>④ 败了还能接着玩</b> <span class="hint">失败延续：不回档、不结束。</span>
+        <div class="st"><span class="n">做法</span><span>选「黑市刀客」打一场（大概率被打倒），战败后看三件事：① 气血归 1 不算死；② 落下伤势，训练效率 ×0.5，静养可消；③ 走一张后续卡（被救／被掠／有人替你出头）并失财。</span></div>
+        <div class="st"><span class="n">还给</span><span>败北照样给一半实战经验——输也长进，避免玩家只敢打软柿子。</span></div>
+        <div class="btns"><button onclick="UI.scen4()">摆好局面并跳到战斗页</button></div>
+        <div class="verdict">要判断的是：战败的代价是否"疼但可承受"，以及要不要给"绝境认输"专门的剧情钩子（当前是通用卡）。</div>
+      </div>`;
+    const qs = [
+      ["战斗外武学判定：存在还是只走确定性阈值？", `默认「存在，但窄」——攀墙、逼毒、威慑这类<b>允许失败</b>的手写场景可掷检定（同一档带，检查值＝实际武学值＋身法修正）；一切<b>关键推进</b>（进门、身份链、交付）只用确定性阈值，不掷骰。理由：生活技能（#18）明确不作随机 roll，武学在剧情里若随手气翻船，玩家会觉得"我练的功夫不算数"。参数条可切到"阈值制"对比。`],
+      ["闪避要不要单独掷一次（双击制）？", `默认单掷：攻方一次检定里已含对方闪避（难度＝对方防御值），一场架 5～10 回合。双击制更"公平"也更拖（命中率约 p×(1−p)，等于打两倍时间）。文本界面里我倾向单掷，把"闪避"做成守势/轻功招式给出的防御加成。`],
+      ["境界门槛按具体武学还是按实际武学值？", `默认按<b>具体武学等级</b>：这样"基本功养数值、具体武学开招式"两层各有职责，且符合 CONTEXT.md「境界是对熟练度的展示」。代价是低悟性玩家靠基本功堆到实际 100，也开不出精通档招式（那正是他该去拜师/吃药的动力）。`],
+      ["基本功 100 的「质变」要不要第二层（贯通）？", `默认给：该门类招式消耗 −25%、命中 +5。否则 100 级只是 +21 点数值，玩家未必觉得"值得刷"。关掉就是纯数值派。`],
+      ["三类曲线的总成本要不要拉平？", `目前不平：平稳 2970 ＜ 艰深 3978 ＜ 易学难精 3925（到 100 的累计经验，见数值台）。要么接受"平稳＝性价比之选"，要么按曲线给封顶特权（如易学难精 100 级多给一招）。这一条最需要你拍。`],
+      ["实战给不给武学经验？", `默认给（对手武学值×0.5 + 回合×2；败北减半）。这是"打架也是练功"的循环，也顺手解决了"只刷木桩不打架"。若你觉得会破坏"苦练"的节奏，可改成只给基本功经验。`],
+      ["根骨门槛（玄阴真炁 需 6）这类天赋门槛能不能设？", `#18 允许"稀有武学、特殊师承"设门槛，禁止核心推进设门槛。原型里放了一门内功做样板：够不到就是灰色禁用＋示因，不影响任何主线。要判断的是门槛值该多高（现值 6，即 25 点里拿出一半以上）。`],
+    ];
+    $("questions").innerHTML = qs.map((q) => `<li><b>${q[0]}</b><div class="hint">${q[1]}</div></li>`).join("");
+  }
+
+  /* ---------------- 参数条 ---------------- */
+  function renderParamBar() {
+    const T = Martial.TUNE;
+    $("parambar").innerHTML = `
+      <b>参数</b>
+      <label>档带阈值
+        <select onchange="UI.setBand(this.value)"><option value="30"${T.bandGreat === 30 ? " selected" : ""}>战斗 ±30</option><option value="20"${T.bandGreat === 20 ? " selected" : ""}>全局缺省 ±20</option><option value="15"${T.bandGreat === 15 ? " selected" : ""}>紧 ±15</option></select>
+      </label>
+      <label><input type="checkbox" ${T.doubleRoll ? "checked" : ""} onchange="UI.setDouble(this.checked)">双击制（命中＋闪避各掷一次）</label>
+      <label>境界基准
+        <select onchange="UI.setRealmBasis(this.value)"><option value="art"${T.realmBasis === "art" ? " selected" : ""}>具体武学等级</option><option value="real"${T.realmBasis === "real" ? " selected" : ""}>实际武学值</option></select>
+      </label>
+      <label><input type="checkbox" ${T.basicUnlockPerk ? "checked" : ""} onchange="UI.setPerk(this.checked)">基本功 100「贯通」</label>
+      <label>战斗外判定
+        <select onchange="UI.setOutside(this.value)"><option value="roll"${T.outsideCheck === "roll" ? " selected" : ""}>掷检定</option><option value="threshold"${T.outsideCheck === "threshold" ? " selected" : ""}>确定性阈值</option></select>
+      </label>`;
+  }
+
+  /* ---------------- 总渲染 ---------------- */
+  function renderAll() {
+    try {
+      renderTalents(); renderDerive(); renderArtPickers();
+      renderTrain(); renderCurveTables();
+      renderEnemyPicker(); renderPcPanel(); renderFight();
+      renderTables(); renderScenarios(); renderParamBar();
+    } catch (e) {
+      const box = $("errBox");
+      if (box) { box.style.display = "block"; box.textContent = "原型内部错误：" + (e && e.stack ? e.stack : e); }
+      throw e;
+    }
+  }
+  function renderTabs() {
+    const names = ["① 人物 · 武学", "② 修炼 · 曲线", "③ 战斗", "④ 数值台", "⑤ 验证 · 待决"];
+    $("tabs").innerHTML = names.map((n, i) => `<div class="tab ${i === curTab ? "active" : ""}" onclick="UI.tab(${i})">${n}</div>`).join("");
+    for (let i = 0; i < names.length; i++) $("p" + i).className = "panel" + (i === curTab ? " active" : "");
+  }
+
+  return {
+    init() { renderTabs(); renderAll(); },
+    tab(i) { curTab = i; renderTabs(); },
+    talent(k, d) {
+      const t = C.talents;
+      const total = t.str + t.agi + t.ins + t.con + t.luk;
+      const v = t[k] + d;
+      if (v < 1 || v > 10) return;
+      if (d > 0 && total >= 25) return;
+      t[k] = v;
+      renderAll();
+    },
+    preset(kind) {
+      const t = C.talents;
+      const maps = {
+        even: { str: 5, agi: 5, ins: 5, con: 5, luk: 5 },
+        dull: { str: 6, agi: 5, ins: 1, con: 8, luk: 5 },
+        bright: { str: 4, agi: 5, ins: 10, con: 3, luk: 3 },
+        strong: { str: 10, agi: 4, ins: 4, con: 5, luk: 2 },
+      };
+      Object.assign(t, maps[kind]);
+      renderAll();
+    },
+    resetAll() { C = Martial.newChar(); F = null; lastTrainMsg = "—"; renderSim(null); renderAll(); },
+    selectArt(slot, id) { C[slot] = id; renderAll(); },
+    train(dedicated, coach, sessions) { doTrain(dedicated, coach, sessions); },
+    trainToRealm() { trainToRealm(); },
+    advance(h) { const n = Martial.advanceHours(C, h); lastTrainMsg = `过了 ${h} 小时：${n ? `${n} 处伤势好转或消退` : "伤势未变"}。`; renderAll(); },
+    pickEnemy(id) { enemyId = id; F = null; renderSim(null); renderAll(); },
+    startFight() {
+      F = Martial.attachMoveGates(Martial.startFight(C, enemyId, 20260915 + Math.floor(Math.random() * 1000)), C);
+      F.log.push({ text: `${F.e.name}站定，抬手示意。`, cls: "sys" });
+      renderFight(); renderAll();
+    },
+    act(kind, moveId) {
+      if (!F || F.outcome) return;
+      const err = Martial.playerAct(F, C, { kind, moveId });
+      if (err) { F.log.push({ text: `（${err}）`, cls: "miss" }); }
+      if (F.outcome) {
+        const st = Martial.settleFight(C, F);
+        F.log.push({ text: `结算：该武学经验 +${st.artXp}（${Martial.realmOf(C.arts[C.mainArt].level)}），基本功经验 +${st.basicXp}。`, cls: "sys" });
+        if (st.consequence) {
+          F.log.push({ text: `【失败延续】${st.consequence.card.title}`, cls: "hit" });
+          F.log.push({ text: st.consequence.card.text, cls: "" });
+          F.log.push({ text: `→ ${st.consequence.wound}，${st.consequence.hours} 小时内训练效率 ×0.5；失了 ${st.consequence.loss} 文。游戏继续。`, cls: "sys" });
+        }
+      }
+      renderFight(); renderDerive();
+    },
+    autoFight(runs) { renderSim(Martial.simulate(C, enemyId, runs, 20260915)); },
+    scen4() {
+      enemyId = "daoke";
+      Object.assign(C.talents, { str: 5, agi: 5, ins: 5, con: 5, luk: 5 });
+      C.arts[C.mainArt] = { level: 20, xp: 0 };
+      C.wounds = [];
+      F = null; renderSim(null);
+      this.startFight();
+      curTab = 2; renderTabs(); renderAll();
+      $("fightLog").insertAdjacentHTML("afterbegin", `<div class="entry sys">场景④：主战武学只有 20 级、基本功 0，对面是武学 78 的黑市刀客——先按「自动打 200 场」看胜率，再按上头任意招式真打一场。</div>`);
+    },
+    setBand(v) { Martial.TUNE.bandGreat = Number(v); Martial.TUNE.bandFail = -Number(v); renderAll(); },
+    setDouble(v) { Martial.TUNE.doubleRoll = !!v; renderAll(); },
+    setRealmBasis(v) { Martial.TUNE.realmBasis = v; renderAll(); },
+    setPerk(v) { Martial.TUNE.basicUnlockPerk = !!v; renderAll(); },
+    setOutside(v) { Martial.TUNE.outsideCheck = v; renderAll(); },
+    applyTune() { applyTune(); },
+    resetTune() {
+      const T = Martial.TUNE;
+      T.bandGreat = 30; T.bandFail = -30; T.hitClamp = [5, 95]; T.xpPerSession = 30;
+      T.basicXpByArt = 10; T.basicXpDedicated = 25; T.coachMult = 1.5;
+      T.dmgStrCoef = 0.6; T.dmgArtCoef = 0.15; T.hpPerCon = 6;
+      renderAll();
+    },
+    copyTune() {
+      const T = Martial.TUNE;
+      $("tuneOut").value = JSON.stringify({
+        检定: { 大成功阈值: T.bandGreat, 大失败阈值: T.bandFail, 命中率上下限: T.hitClamp, 双击制: T.doubleRoll },
+        境界: { 阈值: Martial.REALMS, 基准: T.realmBasis, 贯通: T.basicUnlockPerk },
+        成长: { 每段经验: T.xpPerSession, 基本功顺带: T.basicXpByArt, 基本功专项: T.basicXpDedicated, 教练: T.coachMult, 悟性倍率: T.insight },
+        曲线: Object.fromEntries(Object.entries(Martial.CURVES).map(([k, v]) => [k, v.bands.map((b) => `${b[0]}-${b[1]}:${b[2]}`)])),
+        伤害: { 兵刃基数: T.dmgWeapon, 膂力系数: T.dmgStrCoef, 武学系数: T.dmgArtCoef, 档带倍率: T.dmgMult },
+        败北: { 失财: T.defeatMoneyLoss, 轻伤小时: T.woundHoursLight, 重伤小时: T.woundHoursHeavy },
+      }, null, 2);
+    },
+    _core: () => ({ C, F }),
+  };
+})();
+if (typeof window !== "undefined") { window.UI = UI; window.Martial = Martial; }
+UI.init();
+</script>
+</body>
+</html>
