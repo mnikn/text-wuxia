@@ -144,3 +144,51 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
   color: #f0e9dc; padding: 8px 16px; border-radius: 999px; font-size: 13.5px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
 .toast.on { opacity: 1; }
 .reveal { border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #7a7164; margin-top: 12px; }
+
+
+
+/* ---------- Twee 壳（#20 最短路径）：状态信息在左侧栏（参考 DoL 常驻侧栏） ---------- */
+#game { display: none; height: 100dvh; position: relative; overflow: hidden; }
+#game.on { display: block; }
+
+/* 左侧栏：桌面常驻，手机收起 */
+#game .sidebar { position: absolute; left: 0; top: 0; bottom: 0; z-index: 9;
+  width: min(84vw, 300px); display: flex; flex-direction: column;
+  background: var(--panel); border-right: 1px solid var(--line);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.12);
+  transform: translateX(-102%); transition: transform 0.18s ease-out; }
+#game.side-open .sidebar { transform: translateX(0); }
+#game .sidebar .shead { flex: none; padding: 16px 16px 12px; border-bottom: 1px solid var(--line); }
+#game .sidebar .shead .when { display: block; color: var(--accent); font-weight: bold; font-size: 15px; }
+#game .sidebar .shead .where { display: block; color: #7a7164; font-size: 13px; margin-top: 2px; }
+#game .sidebar .sbody { flex: 1; overflow-y: auto; padding: 8px 16px calc(16px + env(safe-area-inset-bottom)); }
+#game .sidebar .row { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px;
+  padding: 8px 0; border-bottom: 1px dashed #eee5d6; font-size: 13.5px; }
+#game .sidebar .row .v, #game .sidebar .row .k { white-space: nowrap; }
+#game .sidebar .row .k { color: #7a7164; flex: none; }
+#game .sidebar .row .v { font-variant-numeric: tabular-nums; }
+#game .sidebar .row .bar { flex: 1 1 100%; height: 7px; border-radius: 4px; overflow: hidden; background: #e7dfd1; margin-top: 2px; }
+#game .sidebar .row .bar > b { display: block; height: 100%; background: var(--accent); }
+#game .sidebar .row .bar.tili > b { background: #4d6b3a; }
+#game .sidebar .sfoot { flex: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line); }
+#game .sidebar .sfoot .btn { padding: 10px; font-size: 14.5px; }
+
+#game .edge-handle { position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 10;
+  writing-mode: vertical-rl; background: var(--panel); border: 1px solid var(--line); border-left: none;
+  border-radius: 0 8px 8px 0; padding: 14px 7px; font-size: 12.5px; color: var(--accent); letter-spacing: 2px;
+  box-shadow: 2px 0 10px rgba(0, 0, 0, 0.06); min-height: 44px; }
+#game .backdrop { position: absolute; inset: 0; z-index: 8; background: rgba(30, 25, 18, 0.35);
+  opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+#game .backdrop.show { opacity: 1; pointer-events: auto; }
+
+/* 正文区 */
+#game .stage { height: 100%; overflow: hidden; transition: margin-left 0.18s ease-out; }
+#game .scroll { height: 100%; overflow-y: auto; padding: 26px 18px 40px; max-width: 680px; margin: 0 auto; }
+
+@media (min-width: 900px) {
+  #game .edge-handle, #game .backdrop { display: none; }
+  #game .sidebar { transform: none; width: 300px; box-shadow: none; }
+  #game .stage { margin-left: 300px; }
+  #game .scroll { padding: 32px 24px 48px; }
+}

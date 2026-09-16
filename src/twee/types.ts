@@ -1,0 +1,102 @@
+/**
+ * Twee 书写面 → 中间表示（IR）的类型定义。
+ * 对应票据：#16（书写面与编译器契约）、#20（首批最短路径）、#22（涌现模板，本批只读形态不发射）。
+ * IR 只描述内容说了什么，不含任何引擎实现——运行时按 IR 解释。
+ */
+
+export interface SourcePos {
+  line: number;
+}
+
+/** 受限表达式：只读、禁算术、禁三目、禁自由 JS（#16 / #19） */
+export type Expr =
+  | { k: "num"; value: number; pos: SourcePos }
+  | { k: "str"; value: string; pos: SourcePos }
+  | { k: "bool"; value: boolean; pos: SourcePos }
+  | { k: "dotted"; path: string[]; pos: SourcePos }
+  | { k: "call"; name: string; arg: Expr; pos: SourcePos }
+  | { k: "not"; expr: Expr; pos: SourcePos }
+  | { k: "and" | "or"; xs: Expr[]; pos: SourcePos }
+  | { k: "op"; left: Expr; op: "==" | "!=" | "<" | "<=" | ">" | ">="; right: Expr; pos: SourcePos };
+
+/** 效果条目：`<目标> <量>`，量只能是字面量或 tune 键（裸算术一律 error） */
+export interface IrAmount {
+  kind: "literal" | "tune";
+  value: number | string;
+  pos: SourcePos;
+}
+
+export interface IrEff {
+  target: string;
+  delta: IrAmount;
+  pos: SourcePos;
+}
+
+/** 代价条目：效果条目的可支付子集 + time 保留字 */
+export interface IrCost {
+  time?: IrAmount;
+  money?: IrAmount;
+  stamina?: IrAmount;
+  neili?: IrAmount;
+  pos: SourcePos;
+}
+
+export interface IrCheck {
+  name: string;
+  difficulty: number;
+  pos: SourcePos;
+}
+
+/** 正文片段：纯文本或插值 */
+export type IrChunk = string | { k: "interp"; expr: Expr };
+
+export type IrBlock =
+  | { k: "text"; chunks: IrChunk[] }
+  | { k: "if"; branches: { cond: Expr; body: IrBlock[] }[]; elseBody: IrBlock[] | null }
+  | { k: "band"; band: string; body: IrBlock[] }
+  | { k: "effect"; effects: IrEff[] };
+
+export interface IrChoice {
+  id: string;
+  label: string;
+  when?: Expr;
+  cost?: IrCost;
+  check?: IrCheck;
+  blocks: IrBlock[];
+  next?: string;
+  pos: SourcePos;
+}
+
+/** passage 头部 `{JSON}`：只放纯字面量调度元数据（#16） */
+export interface IrMeta {
+  weight?: number;
+  cooldown?: number;
+  priority?: number;
+  once?: boolean;
+  entry?: boolean;
+  /** 进入本单元后玩家所在地点（内容侧声明的字面量） */
+  地点?: string;
+}
+
+export interface IrPassage {
+  id: string;
+  tags: string[];
+  meta: IrMeta;
+  blocks: IrBlock[];
+  choices: IrChoice[];
+  next?: string;
+  pos: SourcePos;
+}
+
+export interface Diagnostic extends SourcePos {
+  level: "error" | "warning";
+  code: string;
+  message: string;
+}
+
+export interface TweeProgram {
+  passages: IrPassage[];
+  /** passage id → 下标 */
+  index: Record<string, number>;
+  diagnostics: Diagnostic[];
+}

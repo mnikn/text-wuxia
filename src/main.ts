@@ -1,1 +1,1 @@
-import "./ui/app";
+import "./ui/twee-app";
