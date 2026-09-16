@@ -11,6 +11,7 @@ import type { TweeProgram } from "../twee/types";
 import {
   chooseOption,
   createSliceState,
+  dateOf,
   enterPassage,
   followNext,
   formatMoney,
@@ -42,8 +43,9 @@ app.innerHTML = `
   </div>
 
   <div id="game">
-    <button class="edge-handle" id="bt-side">状态</button>
-    <div class="backdrop" id="backdrop"></div>
+    <!-- 折叠箭头：收起时在窄栏顶上，展开时贴到状态栏右上角 -->
+    <button class="rail-toggle" id="bt-side" aria-label="展开状态栏">›</button>
+    <!-- 左边常驻：展开是整条状态栏，收起是一条窄栏（时间与体力圆环） -->
     <aside class="sidebar" id="sidebar">
       <div class="shead">
         <span class="when" id="side-when"></span>
@@ -57,11 +59,25 @@ app.innerHTML = `
         <button class="btn" id="bt-title">回题页</button>
       </div>
     </aside>
+    <div class="rail" id="rail">
+      <div class="rail-date">
+        <span id="rail-month"></span>
+        <span id="rail-time"></span>
+      </div>
+      <span class="rail-label">体力</span>
+      <!-- 圆环只画比例；按住（桌面悬停）才浮出具体数值 -->
+      <button class="rail-ring" id="rail-ring" aria-label="体力">
+        <svg class="ring" viewBox="0 0 24 24" aria-hidden="true">
+          <circle class="ring-bg" cx="12" cy="12" r="9"></circle>
+          <circle class="ring-fg" id="ring-fg" cx="12" cy="12" r="9"></circle>
+        </svg>
+        <span class="bubble" id="rail-bubble"></span>
+      </button>
+    </div>
     <div class="stage">
       <div class="scroll">
         <div class="story" id="story-body"></div>
         <div class="choices" id="choices"></div>
-        <p class="logline" id="recent" style="margin-top:14px"></p>
       </div>
     </div>
   </div>
@@ -69,20 +85,36 @@ app.innerHTML = `
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
 const wide = (): boolean => window.matchMedia("(min-width: 900px)").matches;
+/** 体力圆环的周长（r = 9，见上面 SVG） */
+const RING_LEN = 2 * Math.PI * 9;
 
 function hhmm(minute: number): string {
   return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 }
 
+function staminaPct(): number {
+  return Math.max(0, Math.min(100, Math.round((state.stamina.current / state.stamina.max) * 100)));
+}
+
 function renderSide(): void {
-  $("side-when").textContent = `第 ${state.clock.day} 日 ${hhmm(state.clock.minute)}`;
+  const pct = staminaPct();
+  const date = dateOf(state.clock.day);
+
+  $("side-when").textContent = `${date.year} 年 ${date.month} 月 ${date.day} 日 ${hhmm(state.clock.minute)}`;
   $("side-where").textContent = state.location;
-  const pct = Math.max(0, Math.min(100, Math.round((state.stamina.current / state.stamina.max) * 100)));
   $("side-stamina").innerHTML =
     `<span class="k">体力</span>` +
     `<span class="v">${state.stamina.current} / ${state.stamina.max}</span>` +
     `<i class="bar tili"><b style="width:${pct}%"></b></i>`;
   $("side-money").textContent = formatMoney(state.money);
+
+  // 窄栏：圆环只画比例，具体数值藏在按住的浮字里；日期只留月日与时刻
+  $("rail-month").textContent = `${date.month}月${date.day}日`;
+  $("rail-time").textContent = hhmm(state.clock.minute);
+  $("rail-bubble").textContent = `${state.stamina.current} / ${state.stamina.max}`;
+  const ring = $("ring-fg") as unknown as SVGCircleElement;
+  ring.style.strokeDashoffset = String(RING_LEN * (1 - pct / 100));
+  ring.classList.toggle("low", pct <= 30);
 }
 
 /** 追加式落笔：stay 结算只把新段落接在正文后面，不重排、不跳回顶部。 */
@@ -104,14 +136,16 @@ function renderStory(): boolean {
     appendStory(v.appended!);
   } else {
     body.innerHTML = "";
-    for (const para of v.paragraphs) {
-      const p = document.createElement("p");
-      p.textContent = para;
-      body.appendChild(p);
-    }
+    appendStory(v.paragraphs);
+  }
+  // 结算结果跟在正文最后面（DoL 式：结果就在正文流里，另用高亮字标出；增 / 减分色）
+  for (const line of state.recent) {
+    const p = document.createElement("p");
+    p.className = `delta ${line.kind}`;
+    p.textContent = line.text;
+    body.appendChild(p);
   }
   lastPassageId = v.passageId;
-  $("recent").textContent = state.recent.length > 0 ? state.recent.join("　") : "";
   return append;
 }
 
@@ -154,20 +188,18 @@ function renderChoices(): void {
   }
   const here = v.options.filter((o) => !o.exit);
   const away = v.options.filter((o) => o.exit);
-  // 出行选项的文案自带「前往 xx」，不再另贴「前往」标题；「在这里」只在两组并存时出现
-  for (const [title, opts, showTitle] of [
-    ["在这里", here, here.length > 0 && away.length > 0],
-    ["前往", away, false],
-  ] as [string, TweeOption[], boolean][]) {
+  // 参照 DoL 的分区：本地动作一区、能去的地点一区，各有小标题
+  for (const [title, opts] of [
+    ["动作", here],
+    ["地点", away],
+  ] as [string, TweeOption[]][]) {
     if (opts.length === 0) continue;
     const group = document.createElement("div");
     group.className = "choice-group";
-    if (showTitle) {
-      const h = document.createElement("h3");
-      h.className = "group-title";
-      h.textContent = title;
-      group.appendChild(h);
-    }
+    const h = document.createElement("h3");
+    h.className = "group-title";
+    h.textContent = title;
+    group.appendChild(h);
     for (const opt of opts) group.appendChild(choiceButton(opt));
     box.appendChild(group);
   }
@@ -184,7 +216,9 @@ function render(): void {
 
 function setSide(open: boolean): void {
   $("game").classList.toggle("side-open", open);
-  $("backdrop").classList.toggle("show", open);
+  const bt = $("bt-side");
+  bt.textContent = open ? "‹" : "›";
+  bt.setAttribute("aria-label", open ? "收起状态栏" : "展开状态栏");
 }
 
 function start(): void {
@@ -206,4 +240,14 @@ function toTitle(): void {
 $("bt-start").onclick = start;
 $("bt-title").onclick = toTitle;
 $("bt-side").onclick = () => setSide(!$("game").classList.contains("side-open"));
-$("backdrop").onclick = () => setSide(false);
+
+// 体力圆环：按住才浮出数值（用 pointer 事件，触屏与鼠标一致），松手收回
+const ringBtn = $("rail-ring");
+const showBubble = (on: boolean): void => {
+  ringBtn.classList.toggle("show", on);
+};
+ringBtn.addEventListener("pointerdown", () => showBubble(true));
+ringBtn.addEventListener("pointerup", () => showBubble(false));
+ringBtn.addEventListener("pointercancel", () => showBubble(false));
+ringBtn.addEventListener("pointerleave", () => showBubble(false));
+ringBtn.addEventListener("blur", () => showBubble(false));

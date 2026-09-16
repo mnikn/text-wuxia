@@ -8,6 +8,7 @@ import {
   chooseOption,
   costSummary,
   createSliceState,
+  dateOf,
   enterPassage,
   evalExpr,
   followNext,
@@ -126,14 +127,14 @@ describe("选中选项", () => {
     expect(state.clock.minute).toBe(before + 15);
   });
 
-  it("效果结算写进行止记录，银钱按两的显示口径", () => {
+  it("效果结算写进行止记录：文本按银钱显示口径，方向由引擎判定", () => {
     const { state } = at("b");
     const view = chooseOption(program, state, "b", "earn");
     expect(view.passageId).toBe("c");
     expect(state.money).toBe(1500);
     expect(state.stamina.current).toBe(state.stamina.max - 10);
-    expect(state.recent.join("　")).toContain("银钱 +1 两");
-    expect(state.recent.join("　")).toContain("体力 -10");
+    expect(state.recent.map((r) => r.text)).toEqual(["银钱 +1 两 500 文", "体力 -10"]);
+    expect(state.recent.map((r) => r.kind)).toEqual(["gain", "loss"]);
   });
 
   it("没有 next 也没有单元级 next：停在原地，转自由行动", () => {
@@ -372,6 +373,22 @@ describe("结果屏回程", () => {
     const back = followNext(result, state, passageById(result, "a.结果")!);
     expect(back!.passageId).toBe("a");
     expect(state.visited["做了"]).toBe(true);
+  });
+});
+
+describe("历法", () => {
+  it("第 N 日换算成 年 / 月 / 日", () => {
+    expect(dateOf(1)).toEqual({ year: 1, month: 1, day: 1 });
+    expect(dateOf(30)).toEqual({ year: 1, month: 1, day: 30 });
+    expect(dateOf(31)).toEqual({ year: 1, month: 2, day: 1 });
+    expect(dateOf(360)).toEqual({ year: 1, month: 12, day: 30 });
+    expect(dateOf(361)).toEqual({ year: 2, month: 1, day: 1 });
+  });
+
+  it("起点是第 1 日，也就是 1 年 1 月 1 日", () => {
+    const state = createSliceState();
+    expect(state.clock.day).toBe(1);
+    expect(dateOf(state.clock.day).year).toBe(1);
   });
 });
 

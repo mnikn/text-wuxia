@@ -8,6 +8,12 @@ import type { Diagnostic, Expr, IrAmount, IrBlock, IrChunk, IrCost, IrEff, IrPas
 
 /* ---------------- 状态 ---------------- */
 
+/** 行止记录的一条：文本 + 方向，方向由引擎判定（增 / 减 / 只是记一笔） */
+export interface RecentLine {
+  text: string;
+  kind: "gain" | "loss" | "note";
+}
+
 /** 本批的身体与日常状态：体力 / 三层生命 / 双层内力 + 时间地点银钱（#24 定稿） */
 export interface SliceState {
   clock: { day: number; minute: number };
@@ -22,8 +28,8 @@ export interface SliceState {
   atFreeActions: boolean;
   /** 上一个选项的正文（选中后与目标单元的正文连排） */
   pendingText?: string[];
-  /** 最近一次推进产生的行止记录（UI 用） */
-  recent: string[];
+  /** 最近一次推进产生的行止记录（UI 用；跟在正文后面显示） */
+  recent: RecentLine[];
 }
 
 export const SLICE_TUNE = {
@@ -49,6 +55,29 @@ export function createSliceState(): SliceState {
     visited: {},
     atFreeActions: false,
     recent: [],
+  };
+}
+
+/* ---------------- 历法 ---------------- */
+
+/** 本批的简法历：每月 30 日、12 月一年。第 1 日就是 1 年 1 月 1 日。 */
+export const CALENDAR = { daysPerMonth: 30, monthsPerYear: 12 };
+
+export interface GameDate {
+  year: number;
+  month: number;
+  day: number;
+}
+
+/** 第 N 日 → 年月日（时钟内部只存 day 与 minute，年月日是派生值） */
+export function dateOf(day: number): GameDate {
+  const perYear = CALENDAR.daysPerMonth * CALENDAR.monthsPerYear;
+  const idx = Math.max(0, Math.floor(day) - 1);
+  const rest = idx % perYear;
+  return {
+    year: Math.floor(idx / perYear) + 1,
+    month: Math.floor(rest / CALENDAR.daysPerMonth) + 1,
+    day: (rest % CALENDAR.daysPerMonth) + 1,
   };
 }
 
@@ -202,24 +231,26 @@ export function advance(state: SliceState, minutes: number): void {
   }
 }
 
-/** 应用效果条目。 */
-export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string, number>): string | null {
+/** 应用效果条目。方向（增 / 减）在引擎这边定，UI 只管按 kind 上色。 */
+export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string, number>): RecentLine | null {
   const delta = amountValue(eff.delta, tune);
+  const tone: RecentLine["kind"] = delta >= 0 ? "gain" : "loss";
+  const sign = delta >= 0 ? "+" : "";
   switch (eff.target) {
     case "money":
       state.money = Math.max(0, state.money + delta);
-      return `银钱 ${delta >= 0 ? "+" : ""}${formatMoney(delta)}`;
+      return { text: `银钱 ${sign}${formatMoney(delta)}`, kind: tone };
     case "stamina":
       state.stamina.current = clamp(state.stamina.current + delta, 0, state.stamina.max);
-      return `体力 ${delta >= 0 ? "+" : ""}${delta}`;
+      return { text: `体力 ${sign}${delta}`, kind: tone };
     case "neili":
       state.neili.current = clamp(state.neili.current + delta, 0, state.neili.max);
-      return `内力 ${delta >= 0 ? "+" : ""}${delta}`;
+      return { text: `内力 ${sign}${delta}`, kind: tone };
     case "hp":
       state.life.current = clamp(state.life.current + delta, 0, state.life.injuryCap);
-      return `生命 ${delta >= 0 ? "+" : ""}${delta}`;
+      return { text: `生命 ${sign}${delta}`, kind: tone };
     case "log":
-      return String(eff.delta.value);
+      return { text: String(eff.delta.value), kind: "note" };
     case "role":
     default:
       return null;
@@ -247,7 +278,7 @@ export interface TweeView {
   options: TweeOption[];
   /** 本批到此为止：下一步是自由行动 */
   atFreeActions: boolean;
-  recent: string[];
+  recent: RecentLine[];
   /** 就地结算（stay）新追加的段落；UI 只在同一单元里把它接在正文后面 */
   appended?: string[];
   /** 「继续」按钮的文案（结果屏用 meta.返回 覆盖） */
@@ -339,7 +370,7 @@ export function enterPassage(
   program: TweeProgram,
   state: SliceState,
   id: string,
-  recent: string[] = [],
+  recent: RecentLine[] = [],
   choiceText: string[] = [],
 ): TweeView {
   const passage = passageById(program, id);
@@ -372,7 +403,7 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
   const blocked = checkCost(choice.cost, state);
   if (!blocked.ok) throw new Error(`选项 ${choiceId} 付不起：${blocked.reasons.join("、")}`);
   payCost(choice.cost, state);
-  const lines: string[] = [];
+  const lines: RecentLine[] = [];
   const choiceParas: string[] = [];
   renderBlocks(choice.blocks, state, choiceParas);
   for (const block of choice.blocks) {
