@@ -185,7 +185,7 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
 #game .sidebar .row .bar { flex: 1 1 100%; height: 7px; border-radius: 4px; overflow: hidden; background: #e7dfd1; margin-top: 2px; }
 #game .sidebar .row .bar > b { display: block; height: 100%; background: var(--accent); }
 #game .sidebar .row .bar.tili > b { background: #4d6b3a; }
-#game .sidebar .sfoot { flex: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+#game .sidebar .sfoot { flex: none; display: grid; gap: 8px; padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
 #game .sidebar .sfoot .btn { padding: 10px; font-size: 14.5px; }
 
 /* 窄栏：体力标签 + 圆环 + 竖排日期（顶上给折叠箭头留出位置） */
@@ -209,6 +209,28 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
 #game .rail .rail-ring:hover .bubble,
 #game .rail .rail-ring:focus-visible .bubble { display: block; }
 #game .rail .rail-date { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 4px; }
+#game .rail .rail-bag { width: 40px; padding: 6px 0; border: 1px solid var(--line); border-radius: 6px;
+  background: #faf7f0; font-size: 12.5px; color: var(--accent); letter-spacing: 1px; }
+#game .rail .rail-bag:hover { border-color: var(--accent); }
+
+/* 行囊：居中弹框（复用上面 .overlay 的模态样式，只补内容排版） */
+#bag .box { width: min(92vw, 380px); }
+#bag .bag-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+#bag .bag-head .btitle { color: var(--accent); font-weight: bold; font-size: 15px; letter-spacing: 2px; }
+#bag .bag-head .bx { width: 32px; height: 32px; font-size: 18px; line-height: 1; color: #7a7164; }
+#bag .bag-head .bx:hover { color: var(--accent); }
+#bag .load { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 4px 10px;
+  padding: 8px 0; border-bottom: 1px dashed #eee5d6; font-size: 13.5px; }
+#bag .load .k { color: #7a7164; }
+#bag .load .v { font-variant-numeric: tabular-nums; }
+#bag .load .bar { flex: 1 1 100%; height: 7px; border-radius: 4px; overflow: hidden; background: #e7dfd1; margin-top: 2px; }
+#bag .load .bar > b { display: block; height: 100%; background: #4d6b3a; }
+#bag .load .bar.over > b { background: var(--accent); }
+#bag .bag-items { list-style: none; padding: 0; }
+#bag .bag-items li { display: flex; justify-content: space-between; gap: 10px;
+  padding: 8px 0; border-bottom: 1px dashed #eee5d6; font-size: 14px; }
+#bag .bag-items li .c { font-variant-numeric: tabular-nums; color: #7a7164; }
+#bag .bag-items li.empty { color: #8a8175; font-size: 13.5px; }
 
 /* 正文区 */
 #game .stage { flex: 1; min-width: 0; height: 100%; overflow: hidden; }

@@ -4,7 +4,8 @@
  * 范围只有本批需要的东西：渲染 passage、评估受限表达式、扣代价、应用效果、按 <<next>> 前进。
  * 不含：涌现模板、检定档带、战斗、存档。这些等后续增量接。
  */
-import type { Diagnostic, Expr, IrAmount, IrBlock, IrChunk, IrCost, IrEff, IrPassage, TweeProgram } from "./types";
+import { itemName, itemWeight } from "../content/items";
+import type { Diagnostic, Expr, IrAmount, IrBlock, IrChoice, IrChunk, IrCost, IrEff, IrPassage, TweeProgram } from "./types";
 
 /* ---------------- 状态 ---------------- */
 
@@ -14,7 +15,7 @@ export interface RecentLine {
   kind: "gain" | "loss" | "note";
 }
 
-/** 本批的身体与日常状态：体力 / 三层生命 / 双层内力 + 时间地点银钱（#24 定稿） */
+/** 本批的身体与日常状态：体力 / 三层生命 / 双层内力 + 时间地点银钱（#24 定稿）+ 携带物 */
 export interface SliceState {
   clock: { day: number; minute: number };
   location: string;
@@ -22,6 +23,8 @@ export interface SliceState {
   stamina: { current: number; max: number };
   life: { current: number; injuryCap: number; max: number };
   neili: { current: number; max: number };
+  /** 携带物：物品名 → 件数；只含正数（扣到 0 即删键），重量是单件属性 */
+  items: Record<string, number>;
   /** 已到过的单元 */
   visited: Record<string, true>;
   /** 跑到没有选项也没有 next 的单元：本批到此为止（后续接自由行动） */
@@ -38,6 +41,8 @@ export const SLICE_TUNE = {
   neiliMax: 40,
   /** 开场身上没钱：家里只剩父亲那把剑能换钱（#20 开场改版） */
   money: 0,
+  /** 携带上限（斤）：甲案取值，开场买齐粮药后 16/20，剩 4 斤余量 */
+  carryMax: 20,
   day: 1,
   minute: 8 * 60,
   home: "城郊家村",
@@ -52,6 +57,7 @@ export function createSliceState(): SliceState {
     stamina: { current: SLICE_TUNE.staminaMax, max: SLICE_TUNE.staminaMax },
     life: { current: SLICE_TUNE.lifeMax, injuryCap: SLICE_TUNE.lifeMax, max: SLICE_TUNE.lifeMax },
     neili: { current: SLICE_TUNE.neiliMax, max: SLICE_TUNE.neiliMax },
+    items: {},
     visited: {},
     atFreeActions: false,
     recent: [],
@@ -121,10 +127,14 @@ export function evalExpr(expr: Expr, state: SliceState): number | string | boole
       return null;
     }
     case "call": {
-      // 目前只接 seen()：读的就是 visited 表（进过的单元、选过的 mark 都在里头）
+      // seen() 读 visited 表（进过的单元、选过的 mark 都在里头）；item() 读携带物
       if (expr.name === "seen") {
         const arg = evalExpr(expr.arg, state);
         return typeof arg === "string" && state.visited[arg] === true;
+      }
+      if (expr.name === "item") {
+        const arg = evalExpr(expr.arg, state);
+        return typeof arg === "string" ? itemCount(state, arg) : 0;
       }
       return null;
     }
@@ -190,6 +200,91 @@ export function formatMoney(wen: number): string {
   return `${sign}${liang} 两 ${rest} 文`;
 }
 
+/* ---------------- 物品与负重 ---------------- */
+
+/** 当前携带的件数（读不到按 0）。 */
+export function itemCount(state: SliceState, id: string): number {
+  return state.items[id] ?? 0;
+}
+
+/** 增减携带物：数量不为负，扣到 0 即删键，`items` 里只留正数。 */
+function bumpItem(state: SliceState, id: string, delta: number): void {
+  const next = Math.max(0, itemCount(state, id) + delta);
+  if (next === 0) delete state.items[id];
+  else state.items[id] = next;
+}
+
+/** 携带物的总重量（斤）。 */
+export function carryWeight(state: SliceState): number {
+  let sum = 0;
+  for (const [id, count] of Object.entries(state.items)) {
+    sum += itemWeight(id) * count;
+  }
+  return sum;
+}
+
+/**
+ * 携带上限（斤）：只由引擎给，内容侧读不到、也写不了。
+ * 世界观里这个值该由膂力派生（worldview-seed-v3「膂力：进攻伤害、负重、外功底子」），
+ * 等先天天赋接进 SliceState 之后改这一处即可。
+ */
+export function carryCapacity(): number {
+  return SLICE_TUNE.carryMax;
+}
+
+/** 单个效果条目带来的重量变化（不是物品条目就是 0）。 */
+function itemWeightDelta(eff: IrEff, tune?: Record<string, number>): number {
+  if (eff.target !== "item" || !eff.item) return 0;
+  return itemWeight(eff.item) * amountValue(eff.delta, tune);
+}
+
+/** 一组块里物品重量的净增上界：分支结构取各分支最大者，不把互斥的分支相加。 */
+function weightGainUpper(blocks: IrBlock[], tune?: Record<string, number>): number {
+  let sum = 0;
+  for (const b of blocks) {
+    switch (b.k) {
+      case "effect":
+        for (const eff of b.effects) sum += itemWeightDelta(eff, tune);
+        break;
+      case "if": {
+        const branches = b.branches.map((x) => weightGainUpper(x.body, tune));
+        if (b.elseBody) branches.push(weightGainUpper(b.elseBody, tune));
+        if (branches.length > 0) sum += Math.max(...branches);
+        break;
+      }
+      case "band":
+        sum += weightGainUpper(b.body, tune);
+        break;
+      default:
+        break;
+    }
+  }
+  return sum;
+}
+
+export interface CarryCheck {
+  ok: boolean;
+  /** 不满足时的原因（灰化示因与抛错共用） */
+  reason?: string;
+  /** 这个选项做完之后的负重与上限，供界面说明用 */
+  projected: number;
+  capacity: number;
+}
+
+/**
+ * 负重硬门：这个选项做完之后会不会背不动。
+ * 净增 = 效果给的物品重量 − 代价里消耗掉的物品重量（付货只会减重，不必拦）。
+ */
+export function checkCarry(choice: IrChoice, state: SliceState, tune?: Record<string, number>): CarryCheck {
+  const capacity = carryCapacity();
+  let delta = weightGainUpper(choice.blocks, tune);
+  for (const it of choice.cost?.items ?? []) {
+    delta -= itemWeight(it.名) * amountValue(it.量, tune);
+  }
+  const projected = carryWeight(state) + delta;
+  return { ok: projected <= capacity, reason: projected <= capacity ? undefined : "背不动了", projected, capacity };
+}
+
 function amountValue(amount: IrAmount, tune: Record<string, number> = {}): number {
   if (amount.kind === "literal") return Number(amount.value);
   const v = tune[String(amount.value)];
@@ -211,15 +306,19 @@ export function checkCost(cost: IrCost | undefined, state: SliceState, tune?: Re
   if (cost.money && state.money < amountValue(cost.money, tune)) reasons.push("银钱不足");
   if (cost.stamina && state.stamina.current < amountValue(cost.stamina, tune)) reasons.push("体力不支");
   if (cost.neili && state.neili.current < amountValue(cost.neili, tune)) reasons.push("内力不足");
+  for (const it of cost.items ?? []) {
+    if (itemCount(state, it.名) < amountValue(it.量, tune)) reasons.push(`${itemName(it.名)}不足`);
+  }
   return { ok: reasons.length === 0, reasons };
 }
 
-/** 付代价：资源走扣减，时间走时钟推进（#16 的执行分流）。 */
+/** 付代价：资源走扣减，时间走时钟推进，物品走扣货（#16 的执行分流）。 */
 export function payCost(cost: IrCost | undefined, state: SliceState, tune?: Record<string, number>): void {
   if (!cost) return;
   if (cost.money) state.money = Math.max(0, state.money - amountValue(cost.money, tune));
   if (cost.stamina) state.stamina.current = clamp(state.stamina.current - amountValue(cost.stamina, tune), 0, state.stamina.max);
   if (cost.neili) state.neili.current = clamp(state.neili.current - amountValue(cost.neili, tune), 0, state.neili.max);
+  for (const it of cost.items ?? []) bumpItem(state, it.名, -amountValue(it.量, tune));
   if (cost.time) advance(state, amountValue(cost.time, tune));
 }
 
@@ -249,6 +348,15 @@ export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string,
     case "hp":
       state.life.current = clamp(state.life.current + delta, 0, state.life.injuryCap);
       return { text: `生命 ${sign}${delta}`, kind: tone };
+    case "item": {
+      const id = eff.item ?? "";
+      const before = itemCount(state, id);
+      bumpItem(state, id, delta);
+      const actual = itemCount(state, id) - before;
+      // 数量夹到 0 之后可能一点没变（身上没有却要失去）：没有变化就没有可记的
+      if (actual === 0) return null;
+      return { text: `${itemName(id)} ${actual > 0 ? "+" : ""}${actual}`, kind: actual > 0 ? "gain" : "loss" };
+    }
     case "log":
       return { text: String(eff.delta.value), kind: "note" };
     case "role":
@@ -285,7 +393,7 @@ export interface TweeView {
   nextLabel?: string;
 }
 
-/** 代价摘要：`耗时 30 分钟，花 8 文`。 */
+/** 代价摘要：`耗时 30 分钟，花 8 文，耗药包 1`。 */
 export function costSummary(cost: IrCost | undefined, state: SliceState, tune?: Record<string, number>): string | undefined {
   if (!cost) return undefined;
   const parts: string[] = [];
@@ -293,6 +401,7 @@ export function costSummary(cost: IrCost | undefined, state: SliceState, tune?: 
   if (cost.money) parts.push(`花 ${formatMoney(amountValue(cost.money, tune))}`);
   if (cost.stamina) parts.push(`耗体力 ${amountValue(cost.stamina, tune)}`);
   if (cost.neili) parts.push(`耗内力 ${amountValue(cost.neili, tune)}`);
+  for (const it of cost.items ?? []) parts.push(`耗${itemName(it.名)} ${amountValue(it.量, tune)}`);
   const blocked = checkCost(cost, state, tune);
   return parts.length === 0 ? undefined : parts.join("，") + (blocked.ok ? "" : `（${blocked.reasons.join("、")}）`);
 }
@@ -335,6 +444,14 @@ function renderBlocks(blocks: IrBlock[], state: SliceState, out: string[]): void
   }
 }
 
+/** 一个选项为什么不能选：条件不满足 / 付不起 / 背不动。都能选就是 undefined。 */
+function blockedReason(choice: IrChoice, state: SliceState): string | undefined {
+  if (choice.when && !truthy(evalExpr(choice.when, state))) return "条件不满足";
+  const cost = checkCost(choice.cost, state);
+  if (!cost.ok) return cost.reasons.join("、");
+  return checkCarry(choice, state).reason;
+}
+
 /** 把 passage 渲染成视图；只读，不写状态。 */
 export function renderPassage(passage: IrPassage, state: SliceState, program: TweeProgram): TweeView {
   const paragraphs: string[] = [...(state.pendingText ?? [])];
@@ -342,8 +459,7 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
   const options: TweeOption[] = passage.choices
     .filter((c) => c.show === undefined || truthy(evalExpr(c.show, state)))
     .map((c) => {
-      const blocked = c.when && !truthy(evalExpr(c.when, state)) ? "条件不满足" : checkCost(c.cost, state).ok ? undefined : checkCost(c.cost, state).reasons.join("、");
-      return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked, exit: c.exit };
+      return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked: blockedReason(c, state), exit: c.exit };
     });
   return {
     passageId: passage.id,
@@ -402,6 +518,8 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
   }
   const blocked = checkCost(choice.cost, state);
   if (!blocked.ok) throw new Error(`选项 ${choiceId} 付不起：${blocked.reasons.join("、")}`);
+  const carry = checkCarry(choice, state);
+  if (!carry.ok) throw new Error(`选项 ${choiceId} ${carry.reason ?? "背不动了"}：会到 ${carry.projected} / ${carry.capacity} 斤`);
   payCost(choice.cost, state);
   const lines: RecentLine[] = [];
   const choiceParas: string[] = [];

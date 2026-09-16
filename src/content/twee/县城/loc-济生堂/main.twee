@@ -3,10 +3,11 @@
 
 济生堂的柜台上摆着铜秤，墙上贴满药方。柜里的伙计抬眼看了看你，像是认得。
 
-<<choice id="buy" label="抓一星期的药" cost="time 15, money 300" mark="抓药" show="!seen('抓药')">>
+<<choice id="buy" label="抓一星期的药" cost="time 15, money 300" show="item('药包') < 1">>
+<<eff item("药包") +1>>
 <<next 地点.济生堂.已抓药>>
 <</choice>>
-<<choice id="toMarket" label="前往市集" exit="true" cost="time 5" show="seen('抓药')">>
+<<choice id="toMarket" label="前往市集" exit="true" cost="time 5" show="item('药包') >= 1">>
 <<next 地点.市集>>
 <</choice>>
 <<choice id="toPawnshop" label="前往当铺" exit="true" cost="time 5">>
@@ -23,4 +24,4 @@
 
 伙计把药推过来：「早晚各一剂，别熬干了。」他顿了顿，「你娘上回来，也是这两味。」
 
-你把药码进怀里，剩下的钱数了数：七百文。
+你把药码进怀里，剩下的钱数了数，没剩几个子儿。

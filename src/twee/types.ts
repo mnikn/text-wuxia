@@ -27,8 +27,18 @@ export interface IrAmount {
 }
 
 export interface IrEff {
+  /** 目标：内建字段名，或 `item`（此时物品名在 item 字段里） */
   target: string;
+  /** `target === "item"` 时的物品名（已过物品登记表校验） */
+  item?: string;
   delta: IrAmount;
+  pos: SourcePos;
+}
+
+/** 代价里消耗的物品：`cost="time 5, item(药包) 1"` 的 `item(药包) 1` */
+export interface IrCostItem {
+  名: string;
+  量: IrAmount;
   pos: SourcePos;
 }
 
@@ -38,6 +48,8 @@ export interface IrCost {
   money?: IrAmount;
   stamina?: IrAmount;
   neili?: IrAmount;
+  /** 代价里消耗的物品；与资源不同，这里可以有多个条目 */
+  items?: IrCostItem[];
   pos: SourcePos;
 }
 

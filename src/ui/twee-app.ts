@@ -4,17 +4,22 @@
  * - 桌面（≥900px）：左侧栏常驻，正文区右移。
  * - 手机：左侧栏收起，(左) 把手拉开，点背景关。
  * - 状态栏只留时间 · 地点 · 银钱 · 体力（#20 决议：去掉饥饿、疲劳、精力、旧三维与旧伤势档）。
+ * - 行囊是居中弹框：侧栏底部与窄栏各有一个入口，只列身上有的东西与负重。
  */
 import "./style.css";
 import { INDEX, PASSAGES } from "virtual:twee";
+import { itemList, itemName, itemWeight } from "../content/items";
 import type { TweeProgram } from "../twee/types";
 import {
+  carryCapacity,
+  carryWeight,
   chooseOption,
   createSliceState,
   dateOf,
   enterPassage,
   followNext,
   formatMoney,
+  itemCount,
   passageById,
   SLICE_TUNE,
   type SliceState,
@@ -56,6 +61,7 @@ app.innerHTML = `
         <div class="row money"><span class="k">银钱</span><span class="v" id="side-money"></span></div>
       </div>
       <div class="sfoot">
+        <button class="btn" id="bt-bag">行囊</button>
         <button class="btn" id="bt-title">回题页</button>
       </div>
     </aside>
@@ -73,6 +79,19 @@ app.innerHTML = `
         </svg>
         <span class="bubble" id="rail-bubble"></span>
       </button>
+      <!-- 窄栏也要能看行囊：手机上收起状态栏是默认态 -->
+      <button class="rail-bag" id="bt-bag-rail">行囊</button>
+    </div>
+    <!-- 行囊：居中弹框（复用 .overlay 的模态样式），侧栏与窄栏各有一个入口 -->
+    <div class="overlay" id="bag" aria-label="行囊">
+      <div class="box">
+        <div class="bag-head">
+          <span class="btitle">行囊</span>
+          <button class="bx" id="bag-close" aria-label="收起行囊">×</button>
+        </div>
+        <div class="load" id="bag-load"></div>
+        <ul class="bag-items" id="bag-items"></ul>
+      </div>
     </div>
     <div class="stage">
       <div class="scroll">
@@ -115,6 +134,41 @@ function renderSide(): void {
   const ring = $("ring-fg") as unknown as SVGCircleElement;
   ring.style.strokeDashoffset = String(RING_LEN * (1 - pct / 100));
   ring.classList.toggle("low", pct <= 30);
+}
+
+/** 行囊：身上有什么、现在多重。只列正数，空手就说空手。 */
+function renderBag(): void {
+  const cap = carryCapacity();
+  const load = carryWeight(state);
+  const pct = cap > 0 ? Math.max(0, Math.min(100, Math.round((load / cap) * 100))) : 0;
+  $("bag-load").innerHTML =
+    `<span class="k">负重</span>` +
+    `<span class="v">${load} / ${cap} 斤</span>` +
+    `<i class="bar${load > cap ? " over" : ""}"><b style="width:${pct}%"></b></i>`;
+
+  const list = $("bag-items");
+  list.innerHTML = "";
+  const carried = itemList().filter((id) => itemCount(state, id) > 0);
+  if (carried.length === 0) {
+    const li = document.createElement("li");
+    li.className = "empty";
+    li.textContent = "身上空着。";
+    list.appendChild(li);
+    return;
+  }
+  for (const id of carried) {
+    const count = itemCount(state, id);
+    const weight = itemWeight(id) * count;
+    const li = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "n";
+    name.textContent = itemName(id);
+    const num = document.createElement("span");
+    num.className = "c";
+    num.textContent = weight > 0 ? `${count} 件 · ${weight} 斤` : `${count} 件`;
+    li.append(name, num);
+    list.appendChild(li);
+  }
 }
 
 /** 追加式落笔：stay 结算只把新段落接在正文后面，不重排、不跳回顶部。 */
@@ -208,6 +262,7 @@ function renderChoices(): void {
 function render(): void {
   if (!view) return;
   renderSide();
+  renderBag();
   const appended = renderStory();
   renderChoices();
   const scroller = document.querySelector("#game .scroll");
@@ -221,6 +276,11 @@ function setSide(open: boolean): void {
   bt.setAttribute("aria-label", open ? "收起状态栏" : "展开状态栏");
 }
 
+/** 行囊显隐：居中弹框，复用 .overlay 的模态样式 */
+function setBag(open: boolean): void {
+  $("bag").classList.toggle("on", open);
+}
+
 function start(): void {
   state = createSliceState();
   view = enterPassage(program, state, SLICE_TUNE.startPassage);
@@ -228,11 +288,13 @@ function start(): void {
   $("screen-title").classList.remove("on");
   $("game").classList.add("on");
   setSide(wide());
+  setBag(false);
   render();
 }
 
 function toTitle(): void {
   setSide(false);
+  setBag(false);
   $("game").classList.remove("on");
   $("screen-title").classList.add("on");
 }
@@ -240,6 +302,16 @@ function toTitle(): void {
 $("bt-start").onclick = start;
 $("bt-title").onclick = toTitle;
 $("bt-side").onclick = () => setSide(!$("game").classList.contains("side-open"));
+$("bt-bag").onclick = () => setBag(true);
+$("bt-bag-rail").onclick = () => setBag(true);
+$("bag-close").onclick = () => setBag(false);
+// 点弹框外面收起来（点 .box 里面的东西不算）
+$("bag").addEventListener("click", (e) => {
+  if (e.target === $("bag")) setBag(false);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setBag(false);
+});
 
 // 体力圆环：按住才浮出数值（用 pointer 事件，触屏与鼠标一致），松手收回
 const ringBtn = $("rail-ring");

@@ -8,7 +8,7 @@
 <</if>>
 
 <<choice id="pawn" label="当剑" cost="time 5" mark="当剑" show="!seen('当剑')">>
-<<eff money +1000>>
+<<eff money +1000, item("剑") -1, item("当票") +1>>
 <<next 地点.当铺.已当>>
 <</choice>>
 <<choice id="toPharmacy" label="前往济生堂" exit="true" cost="time 5" show="seen('当剑')">>

@@ -5,10 +5,11 @@
 
 粮价一天一个价，排队的人已经懒得骂了。
 
-<<choice id="grain" label="买一星期的粮" cost="time 20, money 200" mark="买粮" show="!seen('买粮')">>
+<<choice id="grain" label="买一星期的粮" cost="time 20, money 200" show="item('米袋') < 1">>
+<<eff item("米袋") +1>>
 <<next 地点.市集.已买粮>>
 <</choice>>
-<<choice id="toRoad" label="前往官道" exit="true" cost="time 5" show="seen('买粮')">>
+<<choice id="toRoad" label="前往官道" exit="true" cost="time 5" show="item('米袋') >= 1">>
 挤过两条街，南门的门洞就在眼前。
 
 <<next 地点.官道>>
@@ -27,4 +28,4 @@
 
 「下月还不知是什么价。」他说。
 
-你把粮袋搭上肩，一手还护着怀里的药。剩下的钱数了数：五百文。
+你把粮袋搭上肩。剩下的钱数了数，没剩几个子儿。

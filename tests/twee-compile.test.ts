@@ -280,6 +280,8 @@ describe("校验门（error）", () => {
     ["choice 不认识的参数", join(":: a", '<<choice id="x" label="甲" weight="3">>', "甲", "<</choice>>", ""), "choice-attr"],
     ["检定写法不对", join(":: a", '<<choice id="x" label="甲" check="拳脚">>', "甲", "<</choice>>", ""), "check-form"],
     ["passage 级 next 缺失目标", join(":: a", "正文", "<<next 不存在>>", ""), "next-missing"],
+    ["物品效果条目写法不对", join(":: a", '<<choice id="x" label="甲">>', '<<eff item("药包")>>', "<</choice>>", ""), "amount-form"],
+    ["物品谓词写进效果目标位", join(":: a", '<<choice id="x" label="甲">>', '<<eff item +1>>', "<</choice>>", ""), "eff-target"],
   ];
 
   it.each(cases)("%s", (_name, src, code) => {

@@ -13,8 +13,10 @@
  * 未实现、遇到即报错并说明：<<bind>> / <<do>> / <<const>> / <<tune>> / 自由 JS。
  */
 import { parseExpr } from "./expr";
+import { hasItem, itemList } from "../content/items";
 import type {
   Diagnostic,
+  Expr,
   IrAmount,
   IrBlock,
   IrCheck,
@@ -164,6 +166,13 @@ function scanAttrs(rest: string): { attrs: Record<string, string>; leftovers: st
 const EFF_TARGETS = new Set(["money", "stamina", "neili", "hp", "role", "log"]);
 /** 代价条目的可支付子集；`time` 是保留字（走时间推进，不进效果表） */
 const COST_KEYS = new Set(["time", "money", "stamina", "neili"]);
+/** 谓词里允许的具名调用（词表里其余谓词尚未接进编译器，遇到即报错） */
+const PREDICATE_CALLS = new Set(["seen", "item"]);
+/**
+ * 物品条目形态：`item("药包") +1`。
+ * 名字的引号可省——代价串本身写在 `cost="…"` 里，内层引号会撞车，所以 `cost="time 5, item(药包) 1"` 是常态写法。
+ */
+const ITEM_ENTRY_RE = /^item\(\s*["']?([^"'()\s]+)["']?\s*\)\s+(\S+)$/;
 const IDENT_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff-]*$/;
 /** 标记名：与标识符同形，但允许点号分段（`开场.看过剑`） */
 const MARK_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff.-]*$/;
@@ -179,14 +188,45 @@ function parseAmount(ctx: Ctx, raw: string, line: number, who: string): IrAmount
   return null;
 }
 
+/**
+ * 解析 `item("名") 量` 形态的条目（效果与代价共用）。
+ * 名字必须已登记在物品表里；量交给 parseAmount 的同一套规则。
+ * 返回 null 表示名字没登记或量不合法（两种情况都已报过错）。
+ */
+function parseItemEntry(
+  ctx: Ctx,
+  name: string,
+  量: string,
+  line: number,
+  who: string,
+  code: string,
+): { 名: string; 量: IrAmount } | null {
+  const parsed = parseAmount(ctx, 量, line, who);
+  if (!parsed) return null;
+  if (!hasItem(name)) {
+    error(ctx, line, code, `${who} 里的物品「${name}」不在登记表里；当前登记：${itemList().join(" / ")}`);
+    return null;
+  }
+  return { 名: name, 量: parsed };
+}
+
 function parseEffects(ctx: Ctx, body: string, line: number): IrEff[] {
   const out: IrEff[] = [];
   for (const raw of body.split(",")) {
     const entry = raw.trim();
     if (entry === "") continue;
+    const itemHit = ITEM_ENTRY_RE.exec(entry);
+    if (itemHit) {
+      const who = `效果条目 ${entry}`;
+      const parsed = parseItemEntry(ctx, itemHit[1]!, itemHit[2]!, line, who, "eff-item-name");
+      if (!parsed) continue;
+      if (isZero(parsed.量)) warn(ctx, line, "eff-zero", `效果条目 \`${entry}\` 的量为 0，没有作用`);
+      out.push({ target: "item", item: parsed.名, delta: parsed.量, pos: { line } });
+      continue;
+    }
     const m = /^([A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff-]*)\s+(\S+)$/.exec(entry);
     if (!m || !AMOUNT_TOKEN_RE.test(m[2]!)) {
-      error(ctx, line, "amount-form", `效果条目要写成「<目标> <量>」，量只能是字面量或 \`tune.\` 键；读到「${entry}」`);
+      error(ctx, line, "amount-form", `效果条目要写成「<目标> <量>」或 \`item("物品名") <量>\`，量只能是字面量或 \`tune.\` 键；读到「${entry}」`);
       continue;
     }
     const target = m[1]!;
@@ -217,9 +257,18 @@ function parseCost(ctx: Ctx, raw: string, line: number): IrCost | undefined {
   for (const part of raw.split(",")) {
     const entry = part.trim();
     if (entry === "") continue;
+    const itemHit = ITEM_ENTRY_RE.exec(entry);
+    if (itemHit) {
+      const parsed = parseItemEntry(ctx, itemHit[1]!, itemHit[2]!, line, `代价项 ${entry}`, "cost-item-name");
+      if (parsed) {
+        cost.items = [...(cost.items ?? []), { 名: parsed.名, 量: parsed.量, pos: { line } }];
+        any = true;
+      }
+      continue;
+    }
     const m = /^([A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff-]*)\s+(\S+)$/.exec(entry);
     if (!m) {
-      error(ctx, line, "cost-form", `代价条目要写成「<键> <量>」，读到「${entry}」`);
+      error(ctx, line, "cost-form", `代价条目要写成「<键> <量>」或 \`item("物品名") <量>\`，读到「${entry}」`);
       continue;
     }
     const key = m[1]!;
@@ -665,10 +714,77 @@ function parseMeta(ctx: Ctx, raw: string | undefined, line: number): IrMeta {
   return meta;
 }
 
-/** 校验门：引用可解析、选项 id 不重复、模板不写 next。 */
+/** passage 里出现的所有表达式：正文插值、`<<if>>` 分支、选项守卫与选项体内嵌块。 */
+function passageExprs(p: IrPassage): Expr[] {
+  const out: Expr[] = [];
+  collectBlockExprs(p.blocks, out);
+  for (const c of p.choices) {
+    if (c.when) out.push(c.when);
+    if (c.show) out.push(c.show);
+    collectBlockExprs(c.blocks, out);
+  }
+  return out;
+}
+
+function collectBlockExprs(blocks: IrBlock[], out: Expr[]): void {
+  for (const b of blocks) {
+    switch (b.k) {
+      case "text":
+        for (const c of b.chunks) if (typeof c !== "string") out.push(c.expr);
+        break;
+      case "if":
+        for (const branch of b.branches) {
+          out.push(branch.cond);
+          collectBlockExprs(branch.body, out);
+        }
+        if (b.elseBody) collectBlockExprs(b.elseBody, out);
+        break;
+      case "band":
+        collectBlockExprs(b.body, out);
+        break;
+      case "effect":
+        break;
+    }
+  }
+}
+
+/** 谓词校验：具名调用要在词表里；`item(…)` 的参数要是登记过的物品名字面量。 */
+function checkExpr(ctx: Ctx, expr: Expr): void {
+  switch (expr.k) {
+    case "call": {
+      if (!PREDICATE_CALLS.has(expr.name)) {
+        error(ctx, expr.pos.line, "call-unimplemented", `谓词里的具名调用 ${expr.name}(…) 还没接进编译器；当前实现：${[...PREDICATE_CALLS].join(" / ")}`);
+      } else if (expr.name === "item") {
+        if (expr.arg.k !== "str") {
+          error(ctx, expr.pos.line, "item-arg", `item(…) 的参数要写成登记过的物品名，如 item("药包")`);
+        } else if (!hasItem(expr.arg.value)) {
+          error(ctx, expr.pos.line, "item-arg", `物品「${expr.arg.value}」不在登记表里；当前登记：${itemList().join(" / ")}`);
+        }
+      }
+      checkExpr(ctx, expr.arg);
+      break;
+    }
+    case "not":
+      checkExpr(ctx, expr.expr);
+      break;
+    case "and":
+    case "or":
+      expr.xs.forEach((x) => checkExpr(ctx, x));
+      break;
+    case "op":
+      checkExpr(ctx, expr.left);
+      checkExpr(ctx, expr.right);
+      break;
+    default:
+      break;
+  }
+}
+
+/** 校验门：引用可解析、选项 id 不重复、模板不写 next、谓词里的调用与物品名已登记。 */
 function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>, checkRefs = true): void {
   if (checkRefs) ctx.diags.push(...validateRefs(passages, index));
   for (const p of passages) {
+    for (const expr of passageExprs(p)) checkExpr(ctx, expr);
     const isTemplate = p.tags.includes("template");
     if (isTemplate && p.next) {
       error(ctx, p.pos.line, "template-next", `涌现模板 ${p.id} 不能写 <<next>>（#22：模板固定原子性、无后续）`);
