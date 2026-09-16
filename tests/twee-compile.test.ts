@@ -150,6 +150,70 @@ describe("就地结算（stay）", () => {
   });
 });
 
+describe("出行（地点）", () => {
+  it('exit="true" 解析成出行', () => {
+    const p = parseTwee(
+      join(":: a [scene]", '<<choice id="go" label="前往当铺" exit="true" cost="time 5">>', "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    const c = p.passages[0]!.choices[0]!;
+    expect(c.exit).toBe(true);
+    expect(c.next).toBe("b");
+  });
+
+  it("出行必须自己写出处，没有 <<next>> 报错", () => {
+    const p = parseTwee(join(":: a [scene]", '<<choice id="go" label="前往当铺" exit="true">>', "走。", "<</choice>>", ""));
+    expect(errs(p.diagnostics)).toContain("exit-next");
+  });
+
+  it("exit 只认 true", () => {
+    const p = parseTwee(join(":: a [scene]", '<<choice id="go" label="前往当铺" exit="yes">>', "走。", "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""));
+    expect(errs(p.diagnostics)).toContain("choice-attr");
+  });
+
+  it("出行文案不写「前往 + 地点名」给 warning", () => {
+    const p = parseTwee(join(":: a [scene]", '<<choice id="go" label="出门，往县城去" exit="true">>', "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""));
+    expect(warns(p.diagnostics)).toContain("exit-label");
+  });
+
+  it("写成「前往 + 地点名」就没有该 warning", () => {
+    const p = parseTwee(join(":: a [scene]", '<<choice id="go" label="前往当铺" exit="true">>', "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""));
+    expect(warns(p.diagnostics)).not.toContain("exit-label");
+  });
+});
+
+describe("结果屏（result）", () => {
+  it("[result] 单元按点分父级自动接上返回，文案走 meta.返回", () => {
+    const p = parseTwee(
+      join(":: 地点.当铺 [scene]", "", "柜台。", "", ":: 地点.当铺.已当 [scene result]", '{"返回":"收好当票"}', "", "当完了。", ""),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    const back = p.passages[1]!;
+    expect(back.next).toBe("地点.当铺");
+    expect(back.meta.返回).toBe("收好当票");
+  });
+
+  it("不写 meta.返回 也能回父级，按钮文案交给 UI 兜底", () => {
+    const p = parseTwee(join(":: 地点.家门外 [scene]", "", "家里。", "", ":: 地点.家门外.看剑 [scene result]", "", "剑挂在那儿。", ""));
+    expect(errs(p.diagnostics)).toEqual([]);
+    expect(p.passages[1]!.next).toBe("地点.家门外");
+    expect(p.passages[1]!.meta.返回).toBeUndefined();
+  });
+
+  it("[result] 的 id 没有点分父级报错", () => {
+    const p = parseTwee(join(":: 孤单的结果屏 [scene result]", "", "看完了。", ""));
+    expect(errs(p.diagnostics)).toContain("result-parent");
+  });
+
+  it("结果屏自己写了 <<next>> 时以自己为准", () => {
+    const p = parseTwee(
+      join(":: a [scene]", "", "甲。", "", ":: a.结果 [scene result]", "", "看完了。", "<<next b>>", "", ":: b [scene]", "", "乙。", ""),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    expect(p.passages[1]!.next).toBe("b");
+  });
+});
+
 describe("正文插值与条件块", () => {
   it("插值切出独立片段", () => {
     const p = parseTwee(join(":: a", "你身上还有 <<= money >> 文。", ""));
@@ -166,6 +230,28 @@ describe("正文插值与条件块", () => {
     if (block.k !== "if") throw new Error("应为条件块");
     expect(block.branches).toHaveLength(1);
     expect(block.elseBody).not.toBeNull();
+  });
+
+  it("嵌套条件块：内层的 <<else>> 与 <</if>> 不被外层抢走", () => {
+    const p = parseTwee(
+      join(
+        ":: a",
+        "<<if money > 0>>",
+        "有钱。",
+        "<<else>>",
+        "<<if stamina > 0>>",
+        "有力气。",
+        "<<else>>",
+        "两样都没有。",
+        "<</if>>",
+        "<</if>>",
+        "",
+      ),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    const outer = p.passages[0]!.blocks[0]!;
+    if (outer.k !== "if") throw new Error("应为条件块");
+    expect(outer.elseBody?.[0]?.k).toBe("if");
   });
 
   it("档位块解析", () => {

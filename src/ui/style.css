@@ -34,6 +34,10 @@ input, select { font: inherit; }
 .choice:active:not(:disabled) { background: #f3ecdf; }
 .choice:disabled { opacity: 0.55; cursor: not-allowed; color: #888; border-color: var(--line); }
 .choice .why { display: block; color: var(--accent); font-size: 12.5px; margin-top: 2px; }
+/* 本地行动与出行分两组：两组都有时才出标题（见 twee-app.ts renderChoices） */
+.choice-group { display: grid; gap: 8px; }
+.choice-group + .choice-group { margin-top: 12px; }
+.group-title { margin: 0; font-size: 12.5px; font-weight: normal; letter-spacing: 1px; color: var(--accent); }
 .story p { margin: 0 0 14px; font-size: 16.5px; }
 .story .scene-head { color: var(--accent); font-size: 14px; margin-bottom: 10px; }
 .logline { font-size: 12.5px; color: #8a8175; }

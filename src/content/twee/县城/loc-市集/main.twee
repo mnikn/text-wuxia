@@ -1,0 +1,30 @@
+:: 地点.市集 [scene]
+{"地点":"市集"}
+
+市集上的粮价写在木牌上，几天一换。几处粮摊前都排着人，摊后的掌柜拿升子量米，量完还要用手抹平。
+
+粮价一天一个价，排队的人已经懒得骂了。
+
+<<choice id="grain" label="买一星期的粮" cost="time 20, money 200" mark="买粮" show="!seen('买粮')">>
+<<next 地点.市集.已买粮>>
+<</choice>>
+<<choice id="toRoad" label="前往官道" exit="true" cost="time 5" show="seen('买粮')">>
+挤过两条街，南门的门洞就在眼前。
+
+<<next 地点.官道>>
+<</choice>>
+<<choice id="toAlley" label="前往南门贫巷" exit="true" cost="time 10">>
+<<next 地点.南门贫巷>>
+<</choice>>
+<<choice id="toHome" label="前往城郊家村" exit="true" cost="time 30">>
+<<next 地点.家门外>>
+<</choice>>
+
+:: 地点.市集.已买粮 [scene result]
+{"返回":"把粮扛上肩"}
+
+二百文，掌柜称好倒进你的布袋，又抓了一把添上，把袋口扎紧。
+
+「下月还不知是什么价。」他说。
+
+你把粮袋搭上肩，一手还护着怀里的药。剩下的钱数了数：五百文。

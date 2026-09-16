@@ -270,6 +270,111 @@ describe("就地结算（stay）与前后变化", () => {
   });
 });
 
+describe("出行选项", () => {
+  const PLACES = join(
+    ":: a [scene]",
+    "",
+    "路口。",
+    "",
+    `<<choice id="look" label="看看" stay="true">>`,
+    "看了一眼。",
+    "<</choice>>",
+    `<<choice id="go" label="前往 b 地" exit="true">>`,
+    "<<next b>>",
+    "<</choice>>",
+    "",
+    ":: b [scene]",
+    "",
+    "到了。",
+    "",
+  );
+  const places = parseTwee(PLACES);
+
+  it("exit 标记跟着选项交到视图里，本地行动不带", () => {
+    const state = createSliceState();
+    const view = enterPassage(places, state, "a");
+    expect(view.options.map((o) => [o.id, o.exit])).toEqual([
+      ["look", undefined],
+      ["go", true],
+    ]);
+  });
+
+  it("出行选了照常换地点", () => {
+    const state = createSliceState();
+    enterPassage(places, state, "a");
+    const view = chooseOption(places, state, "a", "go");
+    expect(view.passageId).toBe("b");
+  });
+});
+
+describe("正文条件分支", () => {
+  const BRANCHES = join(
+    ":: a [scene]",
+    "",
+    "<<if money > 0>>",
+    "有钱。",
+    "<<else>>",
+    "<<if stamina > 0>>",
+    "有力气。",
+    "<<else>>",
+    "两样都没有。",
+    "<</if>>",
+    "<</if>>",
+    "",
+  );
+  const branches = parseTwee(BRANCHES);
+
+  it("嵌套分支按状态只出一支", () => {
+    const rich = createSliceState();
+    rich.money = 10;
+    expect(enterPassage(branches, rich, "a").paragraphs).toEqual(["有钱。"]);
+
+    const strong = createSliceState();
+    expect(enterPassage(branches, strong, "a").paragraphs).toEqual(["有力气。"]);
+
+    const broke = createSliceState();
+    broke.stamina.current = 0;
+    expect(enterPassage(branches, broke, "a").paragraphs).toEqual(["两样都没有。"]);
+  });
+});
+
+describe("结果屏回程", () => {
+  const RESULT = join(
+    ":: a [scene]",
+    "",
+    "地点页。",
+    "",
+    `<<choice id="go" label="做" mark="做了">>`,
+    "<<next a.结果>>",
+    "<</choice>>",
+    "",
+    ":: a.结果 [scene result]",
+    `{"返回":"看完了"}`,
+    "",
+    "结果正文。",
+    "",
+  );
+  const result = parseTwee(RESULT);
+
+  it("结果屏没有选项，只有一条「继续」，文案来自 meta.返回", () => {
+    const state = createSliceState();
+    const view = chooseOption(result, state, "a", "go");
+    expect(view.passageId).toBe("a.结果");
+    expect(view.paragraphs).toEqual(["结果正文。"]);
+    expect(view.options).toEqual([]);
+    expect(view.nextLabel).toBe("看完了");
+    expect(view.atFreeActions).toBe(false);
+  });
+
+  it("顺着 next 走就回到父单元，标记留着", () => {
+    const state = createSliceState();
+    chooseOption(result, state, "a", "go");
+    const back = followNext(result, state, passageById(result, "a.结果")!);
+    expect(back!.passageId).toBe("a");
+    expect(state.visited["做了"]).toBe(true);
+  });
+});
+
 describe("银钱显示口径", () => {
   it("一两 = 一千文，换算只在显示层", () => {
     expect(formatMoney(0)).toBe("0 文");

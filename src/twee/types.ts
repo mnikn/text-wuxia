@@ -70,6 +70,8 @@ export interface IrChoice {
   show?: Expr;
   /** 选中后记下的名字，配 `seen("名字")` 用（就地结算的观察靠它做前后变化） */
   mark?: string;
+  /** 出行：这个选项是「前往另一个地点」，UI 与本地行动分组显示 */
+  exit?: boolean;
   pos: SourcePos;
 }
 
@@ -82,6 +84,8 @@ export interface IrMeta {
   entry?: boolean;
   /** 进入本单元后玩家所在地点（内容侧声明的字面量） */
   地点?: string;
+  /** `[result]` 结果屏的返回按钮文案；不写就是「继续」 */
+  返回?: string;
 }
 
 export interface IrPassage {

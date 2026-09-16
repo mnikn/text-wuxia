@@ -17,6 +17,7 @@ import {
   passageById,
   SLICE_TUNE,
   type SliceState,
+  type TweeOption,
   type TweeView,
 } from "../twee/runtime";
 
@@ -114,6 +115,20 @@ function renderStory(): boolean {
   return append;
 }
 
+function choiceButton(opt: TweeOption): HTMLButtonElement {
+  const btn = document.createElement("button");
+  btn.className = opt.exit ? "choice exit" : "choice";
+  btn.disabled = Boolean(opt.blocked);
+  const small = opt.blocked ? `<small class="why">${opt.blocked}</small>` : opt.summary ? `<small>${opt.summary}</small>` : "";
+  btn.innerHTML = `<span>${opt.label}</span>${small}`;
+  btn.onclick = () => {
+    view = chooseOption(program, state, view!.passageId, opt.id);
+    render();
+  };
+  return btn;
+}
+
+/** 本地行动与出行分两组；两组都有内容时才加标题，单组按原样平铺。 */
 function renderChoices(): void {
   const box = $("choices");
   box.innerHTML = "";
@@ -125,7 +140,7 @@ function renderChoices(): void {
   if (v.options.length === 0) {
     const btn = document.createElement("button");
     btn.className = "choice";
-    btn.innerHTML = `<span>继续</span>`;
+    btn.innerHTML = `<span>${v.nextLabel ?? "继续"}</span>`;
     btn.onclick = () => {
       const passage = passageById(program, v.passageId);
       const next = passage ? followNext(program, state, passage) : null;
@@ -137,17 +152,24 @@ function renderChoices(): void {
     box.appendChild(btn);
     return;
   }
-  for (const opt of v.options) {
-    const btn = document.createElement("button");
-    btn.className = "choice";
-    btn.disabled = Boolean(opt.blocked);
-    const small = opt.blocked ? `<small class="why">${opt.blocked}</small>` : opt.summary ? `<small>${opt.summary}</small>` : "";
-    btn.innerHTML = `<span>${opt.label}</span>${small}`;
-    btn.onclick = () => {
-      view = chooseOption(program, state, v.passageId, opt.id);
-      render();
-    };
-    box.appendChild(btn);
+  const here = v.options.filter((o) => !o.exit);
+  const away = v.options.filter((o) => o.exit);
+  // 出行选项的文案自带「前往 xx」，不再另贴「前往」标题；「在这里」只在两组并存时出现
+  for (const [title, opts, showTitle] of [
+    ["在这里", here, here.length > 0 && away.length > 0],
+    ["前往", away, false],
+  ] as [string, TweeOption[], boolean][]) {
+    if (opts.length === 0) continue;
+    const group = document.createElement("div");
+    group.className = "choice-group";
+    if (showTitle) {
+      const h = document.createElement("h3");
+      h.className = "group-title";
+      h.textContent = title;
+      group.appendChild(h);
+    }
+    for (const opt of opts) group.appendChild(choiceButton(opt));
+    box.appendChild(group);
   }
 }
 

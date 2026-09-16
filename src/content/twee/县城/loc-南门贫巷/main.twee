@@ -1,0 +1,18 @@
+:: 地点.南门贫巷 [scene]
+{"地点":"南门贫巷"}
+
+南门内人声嘈杂。街东一家货栈门口，十来个汉子正卸货箱，腰间都挎着刀。有个老者立在阶上看着，见你瞧得出神，笑了一声：「小兄弟，瞧什么？」你脸上一热，没答话。
+
+巷口钉着块木牌，字掉了漆，上头一行还认得出「济生堂」。底下贴着一张黄纸，墨色尚新：城南苍岩别院招杂役，管饭。
+
+再往里，当铺的门槛磨得发亮，比别家都低一截。
+
+<<choice id="toPawnshop" label="前往当铺" exit="true" cost="time 5">>
+<<next 地点.当铺>>
+<</choice>>
+<<choice id="toMarket" label="前往市集" exit="true" cost="time 10">>
+<<next 地点.市集>>
+<</choice>>
+<<choice id="toHome" label="前往城郊家村" exit="true" cost="time 30">>
+<<next 地点.家门外>>
+<</choice>>

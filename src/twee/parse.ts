@@ -375,7 +375,7 @@ function parseBody(
       const label = attrs["label"];
       if (!id) error(ctx, cur.line, "choice-id", "<<choice>> 缺少 id");
       if (!label) error(ctx, cur.line, "choice-label", "<<choice>> 缺少 label");
-      const unknown = Object.keys(attrs).filter((k) => !["id", "label", "if", "cost", "check", "stay", "show", "mark"].includes(k));
+      const unknown = Object.keys(attrs).filter((k) => !["id", "label", "if", "cost", "check", "stay", "show", "mark", "exit"].includes(k));
       if (unknown.length > 0) {
         error(ctx, cur.line, "choice-attr", `<<choice>> 不认识的参数：${unknown.join(" / ")}`);
       }
@@ -404,6 +404,10 @@ function parseBody(
       if (attrs["mark"] !== undefined) {
         if (!MARK_RE.test(attrs["mark"])) error(ctx, cur.line, "mark-form", `mark 要写一个名字（点号分段也可以），读到「${attrs["mark"]}」`);
         else choice.mark = attrs["mark"];
+      }
+      if (attrs["exit"] !== undefined) {
+        if (attrs["exit"] !== "true") error(ctx, cur.line, "choice-attr", `<<choice>> 的 exit 只认 exit="true"，读到「${attrs["exit"]}」`);
+        else choice.exit = true;
       }
       if (openChoice) error(ctx, cur.line, "choice-nested", "选项不能嵌套在选项里");
       out.choices.push(choice);
@@ -461,11 +465,21 @@ function parseIf(ctx: Ctx, lines: BodyLine[], thenBlocks: IrBlock[], elseBlocks:
     consumed++;
     const trimmed = cur.text.trim();
     if (trimmed === "<<else>>") {
-      flush();
-      mode = "else";
+      // 内层的 <<else>> 留给内层自己解析，别在这里切分支
+      if (depth === 0) {
+        flush();
+        mode = "else";
+        continue;
+      }
+      buffer.push(cur);
       continue;
     }
     if (trimmed === "<</if>>") {
+      if (depth > 0) {
+        depth--;
+        buffer.push(cur);
+        continue;
+      }
       flush();
       return consumed;
     }
@@ -501,7 +515,15 @@ function parseBand(ctx: Ctx, lines: BodyLine[], body: IrBlock[]): number {
 
 /* ---------------- 入口 ---------------- */
 
-export function parseTwee(source: string): TweeProgram {
+export interface ParseOptions {
+  /**
+   * 是否校验 `<<next>>` 的目标存在。单文件直接解析时为 true；
+   * 跨文件编译（compileTweeDir）先关掉，等所有文件合并后再统一查一次。
+   */
+  checkRefs?: boolean;
+}
+
+export function parseTwee(source: string, options: ParseOptions = {}): TweeProgram {
   const ctx: Ctx = { diags: [], seen: new Map() };
   const lines = source.replace(/\r\n?/g, "\n").split("\n");
   const passages: IrPassage[] = [];
@@ -563,7 +585,17 @@ export function parseTwee(source: string): TweeProgram {
     }
     const out: BodyOut = { blocks: [], choices: [] };
     parseBody(ctx, chunk.body, out, null, null);
-    passages.push({ id: chunk.id, tags: chunk.tags, meta, blocks: out.blocks, choices: out.choices, next: out.next, pos: { line: chunk.line } });
+    const passage: IrPassage = { id: chunk.id, tags: chunk.tags, meta, blocks: out.blocks, choices: out.choices, next: out.next, pos: { line: chunk.line } };
+    // 结果屏：`[result]` 的单元按 id 的点分父级自动接上返回，内容侧不用手写返回选项
+    if (chunk.tags.includes("result") && passage.next === undefined) {
+      const cut = chunk.id.lastIndexOf(".");
+      if (cut <= 0) {
+        error(ctx, chunk.line, "result-parent", `单元 ${chunk.id} 标了 [result] 但 id 没有点分父级，回不到任何地方`);
+      } else {
+        passage.next = chunk.id.slice(0, cut);
+      }
+    }
+    passages.push(passage);
   }
 
   const index: Record<string, number> = {};
@@ -571,8 +603,24 @@ export function parseTwee(source: string): TweeProgram {
     if (index[p.id] === undefined) index[p.id] = i;
   });
 
-  validate(ctx, passages, index);
+  validate(ctx, passages, index, options.checkRefs ?? true);
   return { passages, index, diagnostics: ctx.diags };
+}
+
+/** 引用校验：`<<next>>` 的目标得在 index 里（跨文件合并后由 compileTweeDir 再查一遍）。 */
+export function validateRefs(passages: IrPassage[], index: Record<string, number>): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  for (const p of passages) {
+    if (p.next && index[p.next] === undefined) {
+      out.push({ level: "error", code: "next-missing", message: `单元 ${p.id} 的 <<next>> 指向不存在的单元：${p.next}`, line: p.pos.line });
+    }
+    for (const c of p.choices) {
+      if (c.next && index[c.next] === undefined) {
+        out.push({ level: "error", code: "next-missing", message: `单元 ${p.id} 的选项 ${c.id} 指向不存在的单元：${c.next}`, line: c.pos.line });
+      }
+    }
+  }
+  return out;
 }
 
 function parseMeta(ctx: Ctx, raw: string | undefined, line: number): IrMeta {
@@ -606,20 +654,22 @@ function parseMeta(ctx: Ctx, raw: string | undefined, line: number): IrMeta {
         if (typeof v !== "string") error(ctx, line, "meta-type", "头部字段 地点 必须是字符串");
         else meta.地点 = v;
         break;
+      case "返回":
+        if (typeof v !== "string") error(ctx, line, "meta-type", "头部字段 返回 必须是字符串");
+        else meta.返回 = v;
+        break;
       default:
-        error(ctx, line, "meta-key", `头部 {} 只放纯字面量调度元数据（weight / cooldown / priority / once / entry / 地点），不认「${k}」`);
+        error(ctx, line, "meta-key", `头部 {} 只放纯字面量调度元数据（weight / cooldown / priority / once / entry / 地点 / 返回），不认「${k}」`);
     }
   }
   return meta;
 }
 
 /** 校验门：引用可解析、选项 id 不重复、模板不写 next。 */
-function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>): void {
+function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>, checkRefs = true): void {
+  if (checkRefs) ctx.diags.push(...validateRefs(passages, index));
   for (const p of passages) {
     const isTemplate = p.tags.includes("template");
-    if (p.next && index[p.next] === undefined) {
-      error(ctx, p.pos.line, "next-missing", `单元 ${p.id} 的 <<next>> 指向不存在的单元：${p.next}`);
-    }
     if (isTemplate && p.next) {
       error(ctx, p.pos.line, "template-next", `涌现模板 ${p.id} 不能写 <<next>>（#22：模板固定原子性、无后续）`);
     }
@@ -627,11 +677,14 @@ function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>
       if (p.choices.findIndex((x) => x.id === c.id) !== ci) {
         error(ctx, c.pos.line, "choice-dup", `单元 ${p.id} 里选项 id 重复：${c.id}`);
       }
-      if (c.next && index[c.next] === undefined) {
-        error(ctx, c.pos.line, "next-missing", `单元 ${p.id} 的选项 ${c.id} 指向不存在的单元：${c.next}`);
-      }
       if (c.check && c.blocks.length === 0) {
         warn(ctx, c.pos.line, "check-no-band", `单元 ${p.id} 的选项 ${c.id} 有检定但没有 <<band>> 分支`);
+      }
+      if (c.exit && !c.next) {
+        error(ctx, c.pos.line, "exit-next", `单元 ${p.id} 的选项 ${c.id} 是出行（exit="true"），必须自己写 <<next>> 指出去处`);
+      }
+      if (c.exit && !c.label.startsWith("前往")) {
+        warn(ctx, c.pos.line, "exit-label", `单元 ${p.id} 的出行选项 ${c.id} 文案不统一：出行一律写「前往 + 地点名」，读到「${c.label}」`);
       }
     });
     if (p.choices.length === 0 && p.next === undefined && !isTemplate && !p.tags.includes("action")) {

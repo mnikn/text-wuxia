@@ -6,10 +6,10 @@
  * - 产物：`virtual:twee`，导出 `PASSAGES` / `INDEX` / `DIAGNOSTICS`。
  */
 import { readdirSync, readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, relative, resolve } from "node:path";
 import type { Plugin } from "vite";
 import { summarize, toPlain } from "../twee/emit";
-import { parseTwee } from "../twee/parse";
+import { parseTwee, validateRefs } from "../twee/parse";
 import type { Diagnostic, IrPassage } from "../twee/types";
 
 export const TWEE_MODULE_ID = "virtual:twee";
@@ -27,11 +27,20 @@ export interface CompileResult {
   errors: Diagnostic[];
 }
 
-/** 读目录里全部 `.twee`，逐个编译并合并成一个程序。校验门不过就抛错。 */
+/** 递归列出目录里的全部 `.twee`（按 DoL 那样「区域/地点/main.twee」嵌套放）。 */
+function listTweeFiles(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listTweeFiles(full));
+    else if (entry.name.endsWith(".twee")) out.push(full);
+  }
+  return out.sort();
+}
+
+/** 读目录里全部 `.twee`（含子目录），逐个编译并合并成一个程序。校验门不过就抛错。 */
 export function compileTweeDir(dir: string): CompileResult {
-  const files = readdirSync(dir)
-    .filter((f: string) => f.endsWith(".twee"))
-    .sort();
+  const files = listTweeFiles(dir);
   if (files.length === 0) {
     throw new Error(`[twee] ${dir} 里没有 .twee 文件`);
   }
@@ -39,19 +48,22 @@ export function compileTweeDir(dir: string): CompileResult {
   const passages: IrPassage[] = [];
   const index: Record<string, number> = {};
   for (const file of files) {
-    const program = parseTwee(readFileSync(join(dir, file), "utf8"));
+    const label = relative(dir, file).replace(/\\/g, "/");
+    // 逐文件解析时先不查 <<next>> 目标：目标可能在别的文件里，合并后再统一查
+    const program = parseTwee(readFileSync(file, "utf8"), { checkRefs: false });
     for (const d of program.diagnostics) {
-      diagnostics.push({ ...d, message: `${file}：${d.message}` });
+      diagnostics.push({ ...d, message: `${label}：${d.message}` });
     }
     for (const p of program.passages) {
       if (index[p.id] !== undefined) {
-        diagnostics.push({ level: "error", code: "passage-dup-file", message: `${file}：单元 id 与另一个文件重复：${p.id}`, line: p.pos.line });
+        diagnostics.push({ level: "error", code: "passage-dup-file", message: `${label}：单元 id 与另一个文件重复：${p.id}`, line: p.pos.line });
         continue;
       }
       index[p.id] = passages.length;
       passages.push(toPlain({ passages: [p], index: {}, diagnostics: [] }).passages[0]!);
     }
   }
+  diagnostics.push(...validateRefs(passages, index));
   const errors = diagnostics.filter((d) => d.level === "error");
   if (errors.length > 0) {
     const detail = errors.map((e) => `  ${e.code} 第 ${e.line} 行：${e.message}`).join("\n");

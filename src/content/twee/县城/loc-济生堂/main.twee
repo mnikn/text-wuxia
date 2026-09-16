@@ -1,0 +1,26 @@
+:: 地点.济生堂 [scene]
+{"地点":"济生堂"}
+
+济生堂的柜台上摆着铜秤，墙上贴满药方。柜里的伙计抬眼看了看你，像是认得。
+
+<<choice id="buy" label="抓一星期的药" cost="time 15, money 300" mark="抓药" show="!seen('抓药')">>
+<<next 地点.济生堂.已抓药>>
+<</choice>>
+<<choice id="toMarket" label="前往市集" exit="true" cost="time 5" show="seen('抓药')">>
+<<next 地点.市集>>
+<</choice>>
+<<choice id="toPawnshop" label="前往当铺" exit="true" cost="time 5">>
+<<next 地点.当铺>>
+<</choice>>
+<<choice id="toHome" label="前往城郊家村" exit="true" cost="time 30">>
+<<next 地点.家门外>>
+<</choice>>
+
+:: 地点.济生堂.已抓药 [scene result]
+{"返回":"把药收好"}
+
+七剂，三百文。药包用粗纸拧成七个角，绳头一个个扎紧，摞成一小摞。
+
+伙计把药推过来：「早晚各一剂，别熬干了。」他顿了顿，「你娘上回来，也是这两味。」
+
+你把药码进怀里，剩下的钱数了数：七百文。

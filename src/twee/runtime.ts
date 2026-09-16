@@ -35,7 +35,7 @@ export const SLICE_TUNE = {
   day: 1,
   minute: 8 * 60,
   home: "城郊家村",
-  startPassage: "开场.家门外",
+  startPassage: "地点.家门外",
 };
 
 export function createSliceState(): SliceState {
@@ -237,6 +237,8 @@ export interface TweeOption {
   label: string;
   summary?: string;
   blocked?: string;
+  /** 出行选项（前往别的地点），UI 与本地行动分组 */
+  exit?: boolean;
 }
 
 export interface TweeView {
@@ -248,6 +250,8 @@ export interface TweeView {
   recent: string[];
   /** 就地结算（stay）新追加的段落；UI 只在同一单元里把它接在正文后面 */
   appended?: string[];
+  /** 「继续」按钮的文案（结果屏用 meta.返回 覆盖） */
+  nextLabel?: string;
 }
 
 /** 代价摘要：`耗时 30 分钟，花 8 文`。 */
@@ -308,7 +312,7 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
     .filter((c) => c.show === undefined || truthy(evalExpr(c.show, state)))
     .map((c) => {
       const blocked = c.when && !truthy(evalExpr(c.when, state)) ? "条件不满足" : checkCost(c.cost, state).ok ? undefined : checkCost(c.cost, state).reasons.join("、");
-      return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked };
+      return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked, exit: c.exit };
     });
   return {
     passageId: passage.id,
@@ -316,6 +320,7 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
     options,
     atFreeActions: passage.choices.length === 0 && passage.next === undefined,
     recent: state.recent,
+    nextLabel: passage.meta.返回,
   };
 }
 
