@@ -13,7 +13,7 @@
 空的是那双手，剑已经不在了。
 <</if>>
 
-<<choice id="home" label="前往城郊家村" exit="true" cost="time 30">>
+<<choice id="home" label="回家" exit="true" cost="time 30">>
 十几里路，走一段歇一段。天还亮着的时候，村口的炊烟你已经认得出来了。
 
 <<next 地点.家门外>>

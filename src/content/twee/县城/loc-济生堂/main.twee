@@ -13,7 +13,7 @@
 <<choice id="toPawnshop" label="前往当铺" exit="true" cost="time 5">>
 <<next 地点.当铺>>
 <</choice>>
-<<choice id="toHome" label="前往城郊家村" exit="true" cost="time 30">>
+<<choice id="toHome" label="回家" exit="true" cost="time 30">>
 <<next 地点.家门外>>
 <</choice>>
 

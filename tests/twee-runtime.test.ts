@@ -7,6 +7,7 @@ import { parseTwee } from "../src/twee/parse";
 import {
   chooseOption,
   costSummary,
+  formatDuration,
   createSliceState,
   dateOf,
   enterPassage,
@@ -15,6 +16,7 @@ import {
   formatMoney,
   passageById,
   renderPassage,
+  snapToKe,
   type SliceState,
 } from "../src/twee/runtime";
 import { parseExpr } from "../src/twee/expr";
@@ -85,7 +87,7 @@ describe("进入单元", () => {
     expect(state.visited["a"]).toBe(true);
     expect(state.money).toBe(0);
     expect(state.stamina.current).toBe(state.stamina.max);
-    expect(state.clock.minute).toBe(8 * 60);
+    expect(state.clock.minute).toBe(7 * 60);
     expect(view.atFreeActions).toBe(false);
   });
 
@@ -133,7 +135,7 @@ describe("选中选项", () => {
     expect(view.passageId).toBe("c");
     expect(state.money).toBe(1500);
     expect(state.stamina.current).toBe(state.stamina.max - 10);
-    expect(state.recent.map((r) => r.text)).toEqual(["银钱 +1 两 500 文", "体力 -10"]);
+    expect(state.recent.map((r) => r.text)).toEqual(["获得了 1 两 500 文", "体力 -10"]);
     expect(state.recent.map((r) => r.kind)).toEqual(["gain", "loss"]);
   });
 
@@ -154,8 +156,8 @@ describe("代价与拦阻", () => {
     state.money = 200;
     const passage = passageById(program, "b")!;
     const view = renderPassage(passage, state, program);
-    expect(view.options[0]!.blocked).toContain("银钱不足");
-    expect(costSummary(passage.choices[0]!.cost, state)).toBe("耗时 15 分钟，花 300 文（银钱不足）");
+    expect(view.options[0]!.blocked).toBe("银钱不足（需 300 文）");
+    expect(costSummary(passage.choices[0]!.cost, state)).toBe("花 300 文，银钱不足（需 300 文）");
     expect(() => chooseOption(program, state, "b", "pay")).toThrow(/付不起/);
   });
 
@@ -163,7 +165,28 @@ describe("代价与拦阻", () => {
     const { state } = at("b");
     state.money = 1000;
     const pay = passageById(program, "b")!.choices.find((c) => c.id === "pay")!;
-    expect(costSummary(pay.cost, state)).toBe("耗时 15 分钟，花 300 文");
+    expect(costSummary(pay.cost, state)).toBe("花 300 文");
+  });
+
+  it("耗时移到选项名后：duration 用武侠口径，摘要里不再出现", () => {
+    const { state } = at("b");
+    const view = renderPassage(passageById(program, "b")!, state, program);
+    const opt = view.options.find((o) => o.id === "pay")!;
+    expect(opt.minutes).toBe(15);
+    expect(opt.summary).not.toContain("耗时");
+    expect(formatDuration(opt.minutes!)).toBe("一刻");
+  });
+
+  it("时长最低一刻，只说刻与时辰", () => {
+    expect(formatDuration(5)).toBe("一刻");
+    expect(formatDuration(10)).toBe("一刻");
+    expect(formatDuration(15)).toBe("一刻");
+    expect(formatDuration(20)).toBe("两刻");
+    expect(formatDuration(45)).toBe("三刻");
+    expect(formatDuration(60)).toBe("半个时辰");
+    expect(formatDuration(120)).toBe("一个时辰");
+    expect(formatDuration(180)).toBe("一个半时辰");
+    expect(formatDuration(240)).toBe("两个时辰");
   });
 });
 
@@ -407,7 +430,7 @@ describe("表达式求值", () => {
     const { state } = at("a");
     state.money = 120;
     expect(evalExpr(parseExpr("money", 1).expr!, state)).toBe(120);
-    expect(evalExpr(parseExpr("hour", 1).expr!, state)).toBe(8);
+    expect(evalExpr(parseExpr("hour", 1).expr!, state)).toBe(7);
     expect(evalExpr(parseExpr("stamina.max", 1).expr!, state)).toBe(100);
   });
 
@@ -416,5 +439,25 @@ describe("表达式求值", () => {
     state.money = 120;
     expect(evalExpr(parseExpr("money >= 100 && stamina > 0", 1).expr!, state)).toBe(true);
     expect(evalExpr(parseExpr("money < 100 || !true", 1).expr!, state)).toBe(false);
+  });
+});
+
+describe("时间按刻记", () => {
+  it("不足一刻的代价进到一刻：时钟走满 15 分钟，与边栏显示一致", () => {
+    const { state } = at("b");
+    const before = state.clock.minute;
+    chooseOption(program, state, "b", "earn"); // cost="time 5"
+    expect(state.clock.minute - before).toBe(15);
+    expect(snapToKe(5)).toBe(15);
+    expect(snapToKe(15)).toBe(15);
+    expect(snapToKe(20)).toBe(30);
+  });
+
+  it("一刻的代价走一刻，不是 5 分钟", () => {
+    const { state } = at("b");
+    state.money = 1000;
+    const before = state.clock.minute;
+    chooseOption(program, state, "b", "pay"); // cost="time 15, money 300"
+    expect(state.clock.minute - before).toBe(15);
   });
 });

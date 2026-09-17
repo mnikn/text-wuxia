@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { parseTwee } from "../src/twee/parse";
-import { ITEMS, itemDef, itemList, itemName } from "../src/content/items";
+import { ITEMS, itemDef, itemDesc, itemList, itemName } from "../src/content/items";
 import {
   carryCapacity,
   carryWeight,
@@ -80,6 +80,7 @@ describe("物品登记表", () => {
     expect(itemDef("剑")?.重量).toBe(3);
     expect(itemDef("米袋")?.重量).toBe(15);
     expect(itemName("当票")).toBe("当票");
+    expect(itemDesc("当票")).toBe("典物：父亲留下的旧剑一口；当价：一两；赎期：三个月内。");
   });
 
   it("没登记的名字读不回来（原型键也挡掉）", () => {
@@ -95,7 +96,7 @@ describe("物品效果", () => {
     const view = chooseOption(program, state, "家", "take");
     expect(view.passageId).toBe("街");
     expect(state.items["剑"]).toBe(1);
-    expect(state.recent.map((r) => [r.text, r.kind])).toEqual([["剑 +1", "gain"]]);
+    expect(state.recent.map((r) => [r.text, r.kind])).toEqual([["你获得了剑", "gain"]]);
   });
 
   it("失去物品：数量归零即删键，行止记录按减色", () => {
@@ -105,10 +106,7 @@ describe("物品效果", () => {
     expect(state.items["剑"]).toBeUndefined();
     expect(itemCount(state, "剑")).toBe(0);
     expect(state.items["当票"]).toBe(1);
-    expect(state.recent.map((r) => [r.text, r.kind])).toEqual([
-      ["剑 -1", "loss"],
-      ["当票 +1", "gain"],
-    ]);
+    expect(state.recent.map((r) => [r.text, r.kind])).toEqual([["失去了剑，获得了当票", "note"]]);
   });
 
   it("身上没有却要失去：夹到 0，不报错，也不留一条没发生的记录", () => {
@@ -116,7 +114,7 @@ describe("物品效果", () => {
     chooseOption(program, state, "街", "pawn");
     expect(state.items["剑"]).toBeUndefined();
     expect(state.items["当票"]).toBe(1);
-    expect(state.recent.map((r) => r.text)).toEqual(["当票 +1"]);
+    expect(state.recent.map((r) => r.text)).toEqual(["你获得了当票"]);
   });
 
   it("数量永不为负", () => {
@@ -129,6 +127,43 @@ describe("物品效果", () => {
     chooseOption(single, s, "a", "c");
     expect(itemCount(s, "剑")).toBe(0);
     expect(state.items["剑"]).toBe(1);
+  });
+
+  it("多件才带 ×数量：单件不带", () => {
+    const multi = parseTwee(join(":: a [scene]", "", '<<choice id="c" label="拿两把">>', '<<eff item("剑") +2>>', "<</choice>>", ""));
+    const s = createSliceState();
+    enterPassage(multi, s, "a");
+    chooseOption(multi, s, "a", "c");
+    expect(s.recent.map((r) => r.text)).toEqual(["你获得了剑 ×2"]);
+  });
+
+  it("同时获得多样东西并作一行", () => {
+    const both = parseTwee(join(
+      ":: a [scene]", "",
+      '<<choice id="c" label="都拿">>',
+      '<<eff item("剑") +1, item("当票") +2, money +300>>',
+      "<</choice>>", "",
+    ));
+    const s = createSliceState();
+    enterPassage(both, s, "a");
+    chooseOption(both, s, "a", "c");
+    expect(s.recent.map((r) => r.text)).toEqual(["获得了 300 文、剑、当票 ×2"]);
+    expect(s.recent.map((r) => r.kind)).toEqual(["gain"]);
+  });
+
+  it("同时失去多样东西并作一行；只有钱时仍说花掉了", () => {
+    const both = parseTwee(join(
+      ":: a [scene]", "",
+      '<<choice id="c" label="都丢">>',
+      '<<eff item("剑") -1, money -300>>',
+      "<</choice>>", "",
+    ));
+    const s = createSliceState();
+    s.items["剑"] = 1;
+    s.money = 500;
+    enterPassage(both, s, "a");
+    chooseOption(both, s, "a", "c");
+    expect(s.recent.map((r) => r.text)).toEqual(["花掉了 300 文、剑"]);
   });
 });
 
@@ -157,18 +192,18 @@ describe("物品代价", () => {
     state.items["药包"] = 2;
     const before = state.clock.minute;
     const eat = passageById(program, "街")!.choices.find((c) => c.id === "eat")!;
-    expect(costSummary(eat.cost, state)).toBe("耗时 5 分钟，耗药包 1");
+    expect(costSummary(eat.cost, state)).toBe("耗药包 1");
     chooseOption(program, state, "街", "eat");
     expect(state.items["药包"]).toBe(1);
     expect(state.stamina.current).toBe(state.stamina.max);
-    expect(state.clock.minute).toBe(before + 5);
+    expect(state.clock.minute).toBe(before + 15); // 不足一刻按一刻走
   });
 
   it("付不起：选项标出原因，强行选中抛错", () => {
     const state = at("街");
     const view = renderPassage(passageById(program, "街")!, state, program);
     expect(view.options.find((o) => o.id === "eat")!.blocked).toBe("药包不足");
-    expect(costSummary(passageById(program, "街")!.choices.find((c) => c.id === "eat")!.cost, state)).toBe("耗时 5 分钟，耗药包 1（药包不足）");
+    expect(costSummary(passageById(program, "街")!.choices.find((c) => c.id === "eat")!.cost, state)).toBe("耗药包 1，药包不足");
     expect(() => chooseOption(program, state, "街", "eat")).toThrow(/付不起/);
   });
 });

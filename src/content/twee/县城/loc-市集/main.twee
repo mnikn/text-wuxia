@@ -5,7 +5,7 @@
 
 粮价一天一个价，排队的人已经懒得骂了。
 
-<<choice id="grain" label="买一星期的粮" cost="time 20, money 200" show="item('米袋') < 1">>
+<<choice id="grain" label="买一星期的粮" cost="money 200" show="item('米袋') < 1">>
 <<eff item("米袋") +1>>
 <<next 地点.市集.已买粮>>
 <</choice>>
@@ -14,10 +14,10 @@
 
 <<next 地点.官道>>
 <</choice>>
-<<choice id="toAlley" label="前往南门贫巷" exit="true" cost="time 10">>
-<<next 地点.南门贫巷>>
+<<choice id="toAlley" label="前往城中心" exit="true" cost="time 10">>
+<<next 地点.城中心>>
 <</choice>>
-<<choice id="toHome" label="前往城郊家村" exit="true" cost="time 30">>
+<<choice id="toHome" label="回家" exit="true" cost="time 30">>
 <<next 地点.家门外>>
 <</choice>>
 

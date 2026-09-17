@@ -13,6 +13,8 @@ import type { Diagnostic, Expr, IrAmount, IrBlock, IrChoice, IrChunk, IrCost, Ir
 export interface RecentLine {
   text: string;
   kind: "gain" | "loss" | "note";
+  /** 得失混排时的分色段：给了就按段上色，text 只作无样式兜底 */
+  parts?: { text: string; kind: "gain" | "loss" | "note" }[];
 }
 
 /** 本批的身体与日常状态：体力 / 三层生命 / 双层内力 + 时间地点银钱（#24 定稿）+ 携带物 */
@@ -44,7 +46,7 @@ export const SLICE_TUNE = {
   /** 携带上限（斤）：甲案取值，开场买齐粮药后 16/20，剩 4 斤余量 */
   carryMax: 20,
   day: 1,
-  minute: 8 * 60,
+  minute: 7 * 60, // 开场辰时正（时辰口径见 twee-app 的 shichenName）
   home: "城郊家村",
   startPassage: "地点.家门外",
 };
@@ -200,6 +202,16 @@ export function formatMoney(wen: number): string {
   return `${sign}${liang} 两 ${rest} 文`;
 }
 
+/** 行止记录里的钱数：整两说「1 两银两」，零钱只说文，零整都有就不带后缀（「1 两 500 文」）。 */
+function moneyAmount(wen: number): string {
+  const abs = Math.abs(wen);
+  const liang = Math.floor(abs / WEN_PER_LIANG);
+  const rest = abs % WEN_PER_LIANG;
+  if (liang === 0) return `${rest} 文`;
+  if (rest === 0) return `${liang} 两银两`;
+  return `${liang} 两 ${rest} 文`;
+}
+
 /* ---------------- 物品与负重 ---------------- */
 
 /** 当前携带的件数（读不到按 0）。 */
@@ -303,7 +315,10 @@ export interface CostCheck {
 export function checkCost(cost: IrCost | undefined, state: SliceState, tune?: Record<string, number>): CostCheck {
   if (!cost) return { ok: true, reasons: [] };
   const reasons: string[] = [];
-  if (cost.money && state.money < amountValue(cost.money, tune)) reasons.push("银钱不足");
+  if (cost.money) {
+    const need = amountValue(cost.money, tune);
+    if (state.money < need) reasons.push(`银钱不足（需 ${formatMoney(need)}）`);
+  }
   if (cost.stamina && state.stamina.current < amountValue(cost.stamina, tune)) reasons.push("体力不支");
   if (cost.neili && state.neili.current < amountValue(cost.neili, tune)) reasons.push("内力不足");
   for (const it of cost.items ?? []) {
@@ -319,7 +334,12 @@ export function payCost(cost: IrCost | undefined, state: SliceState, tune?: Reco
   if (cost.stamina) state.stamina.current = clamp(state.stamina.current - amountValue(cost.stamina, tune), 0, state.stamina.max);
   if (cost.neili) state.neili.current = clamp(state.neili.current - amountValue(cost.neili, tune), 0, state.neili.max);
   for (const it of cost.items ?? []) bumpItem(state, it.名, -amountValue(it.量, tune));
-  if (cost.time) advance(state, amountValue(cost.time, tune));
+  if (cost.time) advance(state, snapToKe(amountValue(cost.time, tune)));
+}
+
+/** 时间按刻记：不足一刻进到一刻（15 分钟一档），边栏的刻数与实际推进量才对得上。 */
+export function snapToKe(minutes: number): number {
+  return minutes <= 0 ? 0 : Math.max(15, Math.ceil(minutes / 15) * 15);
 }
 
 export function advance(state: SliceState, minutes: number): void {
@@ -338,7 +358,7 @@ export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string,
   switch (eff.target) {
     case "money":
       state.money = Math.max(0, state.money + delta);
-      return { text: `银钱 ${sign}${formatMoney(delta)}`, kind: tone };
+      return { text: `${delta >= 0 ? "获得了 " : "花掉了 "}${moneyAmount(delta)}`, kind: tone };
     case "stamina":
       state.stamina.current = clamp(state.stamina.current + delta, 0, state.stamina.max);
       return { text: `体力 ${sign}${delta}`, kind: tone };
@@ -355,7 +375,11 @@ export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string,
       const actual = itemCount(state, id) - before;
       // 数量夹到 0 之后可能一点没变（身上没有却要失去）：没有变化就没有可记的
       if (actual === 0) return null;
-      return { text: `${itemName(id)} ${actual > 0 ? "+" : ""}${actual}`, kind: actual > 0 ? "gain" : "loss" };
+      const n = Math.abs(actual);
+      return {
+        text: `${actual > 0 ? "你获得了" : "你失去了"}${itemName(id)}${n > 1 ? ` ×${n}` : ""}`,
+        kind: actual > 0 ? "gain" : "loss",
+      };
     }
     case "log":
       return { text: String(eff.delta.value), kind: "note" };
@@ -369,6 +393,91 @@ function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
 
+const GAIN_PREFIX = [/^获得了 /, /^你获得了/];
+const LOSS_PREFIX = [/^花掉了 /, /^你失去了/];
+
+/** 前缀接内容：数字开头（银钱）空一格，物件名直接连上（「失去了剑」「获得了 1 两银两」）。 */
+function withPrefix(prefix: string, parts: string[]): string {
+  const body = parts.join("、");
+  return /^[0-9]/.test(body) ? `${prefix} ${body}` : `${prefix}${body}`;
+}
+
+/** 一次行动的得失并作一行：有得有失是「失去了剑，获得了 1 两银两、当票」，
+ * 只有失是「花掉了 300 文、剑」，只有得是「获得了 300 文、剑」。
+ * 单条获得/失去维持原话（物件是「你获得了剑」）；体力这类不带前后缀的行不参与合并。 */
+function mergeRecent(lines: RecentLine[]): RecentLine[] {
+  const gainParts: string[] = [];
+  const lossParts: string[] = [];
+  let lossHadMoney = false;
+  for (const l of lines) {
+    const gain = GAIN_PREFIX.find((re) => re.test(l.text));
+    const loss = gain ? undefined : LOSS_PREFIX.find((re) => re.test(l.text));
+    if (gain && l.kind === "gain") gainParts.push(l.text.replace(gain, ""));
+    else if (loss && l.kind === "loss") {
+      lossParts.push(l.text.replace(loss, ""));
+      if (loss === LOSS_PREFIX[0]) lossHadMoney = true;
+    }
+  }
+  if (gainParts.length === 0 && lossParts.length === 0) return lines;
+  // 钱排最前，物件跟后
+  const moneyFirst = (a: string, b: string): number => Number(/^[0-9]/.test(b)) - Number(/^[0-9]/.test(a));
+  gainParts.sort(moneyFirst);
+  lossParts.sort(moneyFirst);
+  // 得失都有：并成一行，得失前缀都归并，这条行按原行序列里首次出现的位置落位
+  if (gainParts.length > 0 && lossParts.length > 0) {
+    const lossWord = lossHadMoney && lossParts.length === 1 ? "花掉了" : "失去了";
+    const lossSeg = withPrefix(lossWord, lossParts);
+    const gainSeg = withPrefix("获得了", gainParts);
+    const combined: RecentLine = {
+      text: `${lossSeg}，${gainSeg}`,
+      kind: "note",
+      parts: [
+        { text: lossSeg, kind: "loss" },
+        { text: "，", kind: "note" },
+        { text: gainSeg, kind: "gain" },
+      ],
+    };
+    const merged: RecentLine[] = [];
+    let placed = false;
+    for (const l of lines) {
+      const isGainLoss =
+        (GAIN_PREFIX.some((re) => re.test(l.text)) && l.kind === "gain") || (LOSS_PREFIX.some((re) => re.test(l.text)) && l.kind === "loss");
+      if (!placed && isGainLoss) {
+        merged.push(combined);
+        placed = true;
+        continue;
+      }
+      if (isGainLoss) continue;
+      merged.push(l);
+    }
+    if (!placed) merged.push(combined);
+    return merged;
+  }
+  // 同向多条才归并；单条维持原话
+  const isGain = gainParts.length > 0;
+  const parts = isGain ? gainParts : lossParts;
+  if (parts.length === 1) return lines;
+  const merged: RecentLine[] = [];
+  const line: RecentLine = isGain
+    ? { text: withPrefix("获得了", parts), kind: "gain" }
+    : { text: withPrefix(lossHadMoney ? "花掉了" : "失去了", parts), kind: "loss" };
+  const prefix = isGain ? GAIN_PREFIX : LOSS_PREFIX;
+  const kind = isGain ? "gain" : "loss";
+  let placed = false;
+  for (const l of lines) {
+    const hit = prefix.some((re) => re.test(l.text)) && l.kind === kind;
+    if (!placed && hit) {
+      merged.push(line);
+      placed = true;
+      continue;
+    }
+    if (hit) continue;
+    merged.push(l);
+  }
+  if (!placed) merged.push(line);
+  return merged;
+}
+
 /* ---------------- 渲染 ---------------- */
 
 export interface TweeOption {
@@ -376,6 +485,8 @@ export interface TweeOption {
   label: string;
   summary?: string;
   blocked?: string;
+  /** 耗时（分钟）：选项名后缀 `(0:30)` 用 */
+  minutes?: number;
   /** 出行选项（前往别的地点），UI 与本地行动分组 */
   exit?: boolean;
 }
@@ -393,17 +504,44 @@ export interface TweeView {
   nextLabel?: string;
 }
 
-/** 代价摘要：`耗时 30 分钟，花 8 文，耗药包 1`。 */
+const CN_DIGIT = "零一二三四五六七八九";
+function cnNum(n: number): string {
+  if (n <= 10) return n === 10 ? "十" : CN_DIGIT[n];
+  if (n < 20) return `十${CN_DIGIT[n % 10]}`;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return `${CN_DIGIT[tens]}十${ones ? CN_DIGIT[ones] : ""}`;
+}
+
+/** 分钟数转武侠口径的时长：最低一刻（不足一刻进一刻），只说刻与时辰。 */
+export function formatDuration(min: number): string {
+  if (min >= 60 && min % 60 === 0) {
+    const halves = min / 60;
+    const whole = Math.floor(halves / 2);
+    const rest = halves % 2 === 1;
+    if (whole === 0) return "半个时辰";
+    if (rest) return `${cnNum(whole)}个半时辰`;
+    return `${whole === 2 ? "两" : cnNum(whole)}个时辰`;
+  }
+  const ke = Math.max(1, Math.ceil(min / 15));
+  return `${ke === 2 ? "两" : cnNum(ke)}刻`;
+}
+
+/** 分钟数转 `h:mm`：5 → 0:05，90 → 1:30。 */
+export function formatMinutes(min: number): string {
+  return `${Math.floor(min / 60)}:${String(min % 60).padStart(2, "0")}`;
+}
+
+/** 代价摘要：`花 8 文，耗药包 1`；耗时另走选项名后的 `(0:30)`（TweeOption.minutes）。 */
 export function costSummary(cost: IrCost | undefined, state: SliceState, tune?: Record<string, number>): string | undefined {
   if (!cost) return undefined;
   const parts: string[] = [];
-  if (cost.time) parts.push(`耗时 ${amountValue(cost.time, tune)} 分钟`);
   if (cost.money) parts.push(`花 ${formatMoney(amountValue(cost.money, tune))}`);
   if (cost.stamina) parts.push(`耗体力 ${amountValue(cost.stamina, tune)}`);
   if (cost.neili) parts.push(`耗内力 ${amountValue(cost.neili, tune)}`);
   for (const it of cost.items ?? []) parts.push(`耗${itemName(it.名)} ${amountValue(it.量, tune)}`);
   const blocked = checkCost(cost, state, tune);
-  return parts.length === 0 ? undefined : parts.join("，") + (blocked.ok ? "" : `（${blocked.reasons.join("、")}）`);
+  return parts.length === 0 ? undefined : parts.join("，") + (blocked.ok ? "" : `，${blocked.reasons.join("、")}`);
 }
 
 function renderChunks(chunks: IrChunk[], state: SliceState): string {
@@ -459,7 +597,16 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
   const options: TweeOption[] = passage.choices
     .filter((c) => c.show === undefined || truthy(evalExpr(c.show, state)))
     .map((c) => {
-      return { id: c.id, label: c.label, summary: costSummary(c.cost, state), blocked: blockedReason(c, state), exit: c.exit };
+      // 耗时只在字面量时上视图；符号量要查 tune 表，渲染期不该为它抛错
+      const time = c.cost?.time;
+      return {
+        id: c.id,
+        label: c.label,
+        summary: costSummary(c.cost, state),
+        blocked: blockedReason(c, state),
+        minutes: time?.kind === "literal" ? Number(time.value) : undefined,
+        exit: c.exit,
+      };
     });
   return {
     passageId: passage.id,
@@ -532,7 +679,7 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
       }
     }
   }
-  state.recent = lines;
+  state.recent = mergeRecent(lines);
   if (choice.mark) state.visited[choice.mark] = true;
   // 就地结算：不换单元，结算文作为追加段落交回视图（观察、查看这类）
   if (choice.stay) {
@@ -547,7 +694,7 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
     state.atFreeActions = true;
     return renderPassage(passage, state, program);
   }
-  return enterPassage(program, state, nextId, lines, choiceParas);
+  return enterPassage(program, state, nextId, mergeRecent(lines), choiceParas);
 }
 
 /* ---------------- 构建期校验门（IR 之外） ---------------- */

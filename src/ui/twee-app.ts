@@ -8,7 +8,7 @@
  */
 import "./style.css";
 import { INDEX, PASSAGES } from "virtual:twee";
-import { itemList, itemName, itemWeight } from "../content/items";
+import { itemDesc, itemList, itemName, itemWeight } from "../content/items";
 import type { TweeProgram } from "../twee/types";
 import {
   carryCapacity,
@@ -18,6 +18,7 @@ import {
   dateOf,
   enterPassage,
   followNext,
+  formatDuration,
   formatMoney,
   itemCount,
   passageById,
@@ -107,8 +108,42 @@ const wide = (): boolean => window.matchMedia("(min-width: 900px)").matches;
 /** 体力圆环的周长（r = 9，见上面 SVG） */
 const RING_LEN = 2 * Math.PI * 9;
 
-function hhmm(minute: number): string {
-  return `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+/* ---------------- 计时：月日与时刻都用古代历法 ---------------- */
+
+const CN_DIGIT = "零一二三四五六七八九";
+/** 1-19 的汉字数（日期够用；再大按「二十三」拼） */
+function cnNum(n: number): string {
+  if (n < 0) return String(n);
+  if (n <= 10) return n === 10 ? "十" : CN_DIGIT[n];
+  if (n < 20) return `十${CN_DIGIT[n % 10]}`;
+  const tens = Math.floor(n / 10);
+  const ones = n % 10;
+  return `${CN_DIGIT[tens]}十${ones ? CN_DIGIT[ones] : ""}`;
+}
+
+const MONTHS = ["正", "二", "三", "四", "五", "六", "七", "八", "九", "十", "冬", "腊"];
+/** 日期 → 汉字月日：正月、初五、廿三、三十 */
+function monthDayName(month: number, day: number): string {
+  let d: string;
+  if (day < 10) d = `初${CN_DIGIT[day]}`;
+  else if (day === 10) d = "初十";
+  else if (day < 20) d = cnNum(day);
+  else if (day === 20) d = "二十";
+  else if (day < 30) d = `廿${CN_DIGIT[day % 10]}`;
+  else d = "三十";
+  return `${MONTHS[(month - 1) % 12]}月${d}`;
+}
+
+const SHICHEN = "子丑寅卯辰巳午未申酉戌亥";
+/** 一天里的分钟 → 时辰名：整点「辰时正」，过后「辰时七刻」（子时 23 点起，一时辰八刻，一刻 15 分钟） */
+function shichenName(minute: number): string {
+  const ofDay = ((minute % 1440) + 1440) % 1440;
+  const hour = Math.floor(ofDay / 60);
+  const idx = Math.floor(((hour + 1) % 24) / 2);
+  const startMin = (((idx * 2 - 1) + 24) % 24) * 60;
+  const offset = (ofDay - startMin + 1440) % 1440;
+  const ke = Math.min(8, Math.floor(offset / 15));
+  return `${SHICHEN[idx]}时${ke === 0 ? "正" : `${cnNum(ke)}刻`}`;
 }
 
 function staminaPct(): number {
@@ -119,7 +154,7 @@ function renderSide(): void {
   const pct = staminaPct();
   const date = dateOf(state.clock.day);
 
-  $("side-when").textContent = `${date.year} 年 ${date.month} 月 ${date.day} 日 ${hhmm(state.clock.minute)}`;
+  $("side-when").textContent = `${date.year} 年 ${monthDayName(date.month, date.day)} ${shichenName(state.clock.minute)}`;
   $("side-where").textContent = state.location;
   $("side-stamina").innerHTML =
     `<span class="k">体力</span>` +
@@ -128,8 +163,8 @@ function renderSide(): void {
   $("side-money").textContent = formatMoney(state.money);
 
   // 窄栏：圆环只画比例，具体数值藏在按住的浮字里；日期只留月日与时刻
-  $("rail-month").textContent = `${date.month}月${date.day}日`;
-  $("rail-time").textContent = hhmm(state.clock.minute);
+  $("rail-month").textContent = monthDayName(date.month, date.day);
+  $("rail-time").textContent = shichenName(state.clock.minute);
   $("rail-bubble").textContent = `${state.stamina.current} / ${state.stamina.max}`;
   const ring = $("ring-fg") as unknown as SVGCircleElement;
   ring.style.strokeDashoffset = String(RING_LEN * (1 - pct / 100));
@@ -160,13 +195,19 @@ function renderBag(): void {
     const count = itemCount(state, id);
     const weight = itemWeight(id) * count;
     const li = document.createElement("li");
+    const top = document.createElement("div");
+    top.className = "top";
     const name = document.createElement("span");
     name.className = "n";
-    name.textContent = itemName(id);
-    const num = document.createElement("span");
-    num.className = "c";
-    num.textContent = weight > 0 ? `${count} 件 · ${weight} 斤` : `${count} 件`;
-    li.append(name, num);
+    name.textContent = `${itemName(id)} ×${count}`;
+    const wt = document.createElement("span");
+    wt.className = "w";
+    wt.textContent = weight > 0 ? `${weight} 斤` : "—";
+    top.append(name, wt);
+    const desc = document.createElement("p");
+    desc.className = "desc";
+    desc.textContent = itemDesc(id);
+    li.append(top, desc);
     list.appendChild(li);
   }
 }
@@ -196,7 +237,16 @@ function renderStory(): boolean {
   for (const line of state.recent) {
     const p = document.createElement("p");
     p.className = `delta ${line.kind}`;
-    p.textContent = line.text;
+    if (line.parts) {
+      for (const part of line.parts) {
+        const span = document.createElement("span");
+        span.className = part.kind;
+        span.textContent = part.text;
+        p.appendChild(span);
+      }
+    } else {
+      p.textContent = line.text;
+    }
     body.appendChild(p);
   }
   lastPassageId = v.passageId;
@@ -207,8 +257,8 @@ function choiceButton(opt: TweeOption): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.className = opt.exit ? "choice exit" : "choice";
   btn.disabled = Boolean(opt.blocked);
-  const small = opt.blocked ? `<small class="why">${opt.blocked}</small>` : opt.summary ? `<small>${opt.summary}</small>` : "";
-  btn.innerHTML = `<span>${opt.label}</span>${small}`;
+  const small = opt.blocked ? `<small class="why">${opt.blocked}</small>` : opt.summary ? `<small>（${opt.summary}）</small>` : "";
+  btn.innerHTML = `<span>${opt.label}${opt.minutes ? ` (${formatDuration(opt.minutes)})` : ""}</span>${small}`;
   btn.onclick = () => {
     view = chooseOption(program, state, view!.passageId, opt.id);
     render();

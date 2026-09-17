@@ -28,9 +28,9 @@ input, select { font: inherit; }
 .choice {
   display: block; width: 100%; text-align: left;
   background: none; border: 0; border-radius: 0;
-  padding: 5px 0; font-size: 16.5px; line-height: 1.5; color: var(--accent);
+  padding: 5px 0; font-size: 16.5px; line-height: 1.5; color: #2f5d8c;
 }
-.choice small { color: #8a8175; font-size: 13px; margin-left: 8px; }
+.choice small { color: #b03030; font-size: inherit; margin-left: 8px; }
 .choice:hover:not(:disabled) { text-decoration: underline; }
 .choice:active:not(:disabled) { opacity: 0.7; }
 .choice:disabled { color: #a09889; cursor: not-allowed; }
@@ -47,6 +47,9 @@ input, select { font: inherit; }
 .story p.delta.gain { color: #a8651a; }
 .story p.delta.loss { color: #8c2f2f; }
 .story p.delta.note { color: #6b6357; }
+/* 得失混排一行里的分色段 */
+.story p.delta span.gain { color: #a8651a; }
+.story p.delta span.loss { color: #8c2f2f; }
 .story .scene-head { color: var(--accent); font-size: 14px; margin-bottom: 10px; }
 .logline { font-size: 12.5px; color: #8a8175; }
 .kv { display: flex; justify-content: space-between; font-size: 14px; padding: 5px 0; border-bottom: 1px dashed #eee5d6; }
@@ -189,7 +192,7 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
 #game .sidebar .sfoot .btn { padding: 10px; font-size: 14.5px; }
 
 /* 窄栏：体力标签 + 圆环 + 竖排日期（顶上给折叠箭头留出位置） */
-#game .rail { flex: none; width: 54px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+#game .rail { flex: none; width: 72px; display: flex; flex-direction: column; align-items: center; gap: 10px;
   padding: 56px 0 12px; background: var(--panel); border-right: 1px solid var(--line); }
 #game.side-open .rail { display: none; }
 #game .rail .rail-label, #game .rail .rail-date span { letter-spacing: 1px;
@@ -227,9 +230,10 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
 #bag .load .bar > b { display: block; height: 100%; background: #4d6b3a; }
 #bag .load .bar.over > b { background: var(--accent); }
 #bag .bag-items { list-style: none; padding: 0; }
-#bag .bag-items li { display: flex; justify-content: space-between; gap: 10px;
-  padding: 8px 0; border-bottom: 1px dashed #eee5d6; font-size: 14px; }
-#bag .bag-items li .c { font-variant-numeric: tabular-nums; color: #7a7164; }
+#bag .bag-items li { padding: 8px 0; border-bottom: 1px dashed #eee5d6; font-size: 14px; }
+#bag .bag-items li .top { display: flex; justify-content: space-between; gap: 10px; }
+#bag .bag-items li .top .w { font-variant-numeric: tabular-nums; color: #7a7164; }
+#bag .bag-items li .desc { margin: 3px 0 0; font-size: 12.5px; line-height: 1.5; color: #8a8175; }
 #bag .bag-items li.empty { color: #8a8175; font-size: 13.5px; }
 
 /* 正文区 */
