@@ -126,6 +126,16 @@ h4 { font-size: 14px; color: var(--accent); margin: 12px 0 6px; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
 .btn.primary:hover:not(:disabled) { color: #fff; filter: brightness(1.08); }
+.dev-launcher { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 18px;
+  padding: 12px; border: 1px dashed var(--line); border-radius: 8px; background: rgba(255, 255, 255, 0.45); }
+.dev-launcher .dev-label { grid-column: 1 / -1; color: #8a8175; font-size: 12.5px; letter-spacing: 2px; }
+.dev-launcher select { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+.dev-launcher .btn { width: auto; padding: 8px 14px; font-size: 14px; }
+@media (max-width: 560px) {
+  .dev-launcher { grid-template-columns: 1fr; }
+  .dev-launcher .dev-label { grid-column: auto; }
+  .dev-launcher .btn { width: 100%; }
+}
 h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--accent); padding-left: 10px; }
 
 .origin-card { display: block; width: 100%; text-align: left; background: var(--panel); border: 1.5px solid var(--line);

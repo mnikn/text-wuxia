@@ -27,6 +27,7 @@ import {
   type TweeOption,
   type TweeView,
 } from "../twee/runtime";
+import { createPrototypeState, isPrototypePresetId, PROTOTYPE_PRESETS, type PrototypePresetId } from "./prototype-launch";
 
 const program = { passages: PASSAGES, index: INDEX, diagnostics: [] } as unknown as TweeProgram;
 
@@ -35,6 +36,16 @@ let state: SliceState = createSliceState();
 let view: TweeView | null = null;
 /** 上一次渲染的单元：同一单元再来一次视图时走追加，不重排正文 */
 let lastPassageId: string | null = null;
+const debugLauncher = import.meta.env.DEV
+  ? `
+    <div class="dev-launcher">
+      <span class="dev-label">开发直达</span>
+      <select id="dev-passage" aria-label="场景"></select>
+      <select id="dev-preset" aria-label="状态预设"></select>
+      <button class="btn" id="bt-dev-start">进入场景</button>
+    </div>
+  `
+  : "";
 
 app.innerHTML = `
   <div id="screen-title" class="screen on">
@@ -44,6 +55,7 @@ app.innerHTML = `
     </div>
     <div class="menu">
       <button class="btn primary" id="bt-start">从头开始</button>
+      ${debugLauncher}
     </div>
     <p class="logline" style="margin-top:20px;text-align:center">本批只做到「可以开始行动」那一点</p>
   </div>
@@ -331,15 +343,19 @@ function setBag(open: boolean): void {
   $("bag").classList.toggle("on", open);
 }
 
-function start(): void {
-  state = createSliceState();
-  view = enterPassage(program, state, SLICE_TUNE.startPassage);
+function startPrototype(passageId: string, presetId: PrototypePresetId): void {
+  state = createPrototypeState(presetId);
+  view = enterPassage(program, state, passageId);
   lastPassageId = null;
   $("screen-title").classList.remove("on");
   $("game").classList.add("on");
   setSide(wide());
   setBag(false);
   render();
+}
+
+function start(): void {
+  startPrototype(SLICE_TUNE.startPassage, "fresh");
 }
 
 function toTitle(): void {
@@ -373,3 +389,26 @@ ringBtn.addEventListener("pointerup", () => showBubble(false));
 ringBtn.addEventListener("pointercancel", () => showBubble(false));
 ringBtn.addEventListener("pointerleave", () => showBubble(false));
 ringBtn.addEventListener("blur", () => showBubble(false));
+
+if (import.meta.env.DEV) {
+  const passageSelect = $<HTMLSelectElement>("dev-passage");
+  const presetSelect = $<HTMLSelectElement>("dev-preset");
+  for (const passage of program.passages) {
+    const option = document.createElement("option");
+    option.value = passage.id;
+    option.textContent = passage.id;
+    passageSelect.appendChild(option);
+  }
+  for (const preset of PROTOTYPE_PRESETS) {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    presetSelect.appendChild(option);
+  }
+
+  $("bt-dev-start").onclick = () => {
+    const presetId = presetSelect.value;
+    if (!isPrototypePresetId(presetId)) return;
+    startPrototype(passageSelect.value, presetId);
+  };
+}

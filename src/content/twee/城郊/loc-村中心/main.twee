@@ -21,7 +21,7 @@
 <<choice id="toTown" label="前往石桥镇" exit="true" cost="time 64" show="seen('开场.停留')">>
   你顺着土路往北，过了两道土岗，再沿洺水走。八个时辰的路，走到后来，脚底磨出了泡。
 
-  <<next 地点.石桥镇>>
+  <<next 石桥镇.初到>>
 <</choice>>
 <<choice id="toHome" label="回家" exit="true" cost="time 2" show="seen('开场.停留') || (item('药包') >= 1 && item('米袋') >= 1)">>
   <<next 地点.家门外>>
