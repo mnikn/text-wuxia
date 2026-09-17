@@ -101,6 +101,35 @@ describe("进入单元", () => {
   });
 });
 
+describe("随机调度", () => {
+  const randomProgram = parseTwee(
+    join(
+      ":: 随机 [random]",
+      '<<outcome weight="1" next="结果.甲">>',
+      '<<outcome weight="1" next="结果.乙">>',
+      "",
+      ":: 结果.甲 [action]",
+      "甲。",
+      "",
+      ":: 结果.乙 [action]",
+      "乙。",
+      "",
+    ),
+  );
+
+  it("相同 seed 与 cursor 得到相同结果，并只推进一次 cursor", () => {
+    const first = createSliceState();
+    const second = createSliceState();
+    const a = enterPassage(randomProgram, first, "随机");
+    const b = enterPassage(randomProgram, second, "随机");
+    expect(a.passageId).toBe(b.passageId);
+    expect(["结果.甲", "结果.乙"]).toContain(a.passageId);
+    expect(first.random.cursor).toBe(1);
+    expect(second.random).toEqual(first.random);
+    expect(first.visited["随机"]).toBe(true);
+  });
+});
+
 describe("选中选项", () => {
   it("无代价：不动时间与资源；选项没写 next 时落到单元级 next", () => {
     const { state } = at("a");

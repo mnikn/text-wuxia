@@ -88,6 +88,13 @@ export interface IrChoice {
   pos: SourcePos;
 }
 
+/** `[random]` 调度单元的一条加权出口。 */
+export interface IrOutcome {
+  weight: number;
+  next: string;
+  pos: SourcePos;
+}
+
 /** passage 头部 `{JSON}`：只放纯字面量调度元数据（#16） */
 export interface IrMeta {
   weight?: number;
@@ -107,6 +114,7 @@ export interface IrPassage {
   meta: IrMeta;
   blocks: IrBlock[];
   choices: IrChoice[];
+  outcomes: IrOutcome[];
   next?: string;
   pos: SourcePos;
 }

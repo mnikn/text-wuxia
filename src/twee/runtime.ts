@@ -5,6 +5,7 @@
  * 不含：涌现模板、检定档带、战斗、存档。这些等后续增量接。
  */
 import { itemName, itemWeight } from "../content/items";
+import { weightedPick, type RngState } from "../engine/rng";
 import type { Diagnostic, Expr, IrAmount, IrBlock, IrChoice, IrChunk, IrCost, IrEff, IrPassage, TweeProgram } from "./types";
 
 /* ---------------- 状态 ---------------- */
@@ -35,6 +36,8 @@ export interface SliceState {
   pendingText?: string[];
   /** 最近一次推进产生的行止记录（UI 用；跟在正文后面显示） */
   recent: RecentLine[];
+  /** 确定性随机状态：每次随机调度只推进 cursor。 */
+  random: RngState;
 }
 
 export const SLICE_TUNE = {
@@ -49,6 +52,7 @@ export const SLICE_TUNE = {
   minute: 7 * 60, // 开场辰时正（时辰口径见 twee-app 的 shichenName）
   home: "家中",
   startPassage: "地点.家村.家中",
+  seed: 1,
 };
 
 export function createSliceState(): SliceState {
@@ -63,6 +67,7 @@ export function createSliceState(): SliceState {
     visited: {},
     atFreeActions: false,
     recent: [],
+    random: { seed: SLICE_TUNE.seed, cursor: 0 },
   };
 }
 
@@ -641,6 +646,12 @@ export function enterPassage(
   if (!passage) throw new Error(`没有这个单元：${id}`);
   state.visited[id] = true;
   if (passage.meta.地点) state.location = passage.meta.地点;
+  if (passage.tags.includes("random")) {
+    const picked = weightedPick(state.random, passage.outcomes, (outcome) => outcome.weight);
+    if (picked.index < 0) throw new Error(`随机调度单元 ${id} 没有可选 outcome`);
+    state.random = picked.rng;
+    return enterPassage(program, state, passage.outcomes[picked.index]!.next, recent, choiceText);
+  }
   state.recent = recent;
   // 选项正文与目标单元正文连排：玩家先看到自己干的那件事，再看到落到的场景
   state.pendingText = choiceText;

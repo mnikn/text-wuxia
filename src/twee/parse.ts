@@ -9,6 +9,7 @@
  *   <<band 大成功>>…<</band>>
  *   <<eff money +6, stamina -10>>          （叶子宏，不进正文）
  *   <<next 单元 id>>
+ *   <<outcome weight="50" next="单元 id">> （仅用于 `[random]` 调度单元）
  *
  * 未实现、遇到即报错并说明：<<bind>> / <<do>> / <<const>> / <<tune>> / 自由 JS。
  */
@@ -25,11 +26,12 @@ import type {
   IrCost,
   IrEff,
   IrMeta,
+  IrOutcome,
   IrPassage,
   TweeProgram,
 } from "./types";
 
-const SELF_CLOSING = new Set(["eff", "next"]);
+const SELF_CLOSING = new Set(["eff", "next", "outcome"]);
 const KNOWN_BLOCK = new Set(["choice", "if", "band"]);
 const UNSUPPORTED = new Set(["bind", "do", "const", "tune", "set", "widget"]);
 
@@ -315,6 +317,7 @@ interface BodyLine {
 interface BodyOut {
   blocks: IrBlock[];
   choices: IrChoice[];
+  outcomes: IrOutcome[];
   next?: string;
 }
 
@@ -379,7 +382,7 @@ function parseBody(
     const nameMatch = /^([A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff-]*)/.exec(macro);
     const name = nameMatch?.[1] ?? "";
     // 带引号参数的宏走属性解析；<<next 单元 id>> 这类无引号参数自己取
-    const needsAttrs = name === "choice";
+    const needsAttrs = name === "choice" || name === "outcome";
     const { attrs, leftovers } = needsAttrs ? scanAttrs(macro.slice(name.length)) : { attrs: {}, leftovers: [] as string[] };
     if (needsAttrs) {
       for (const leftover of leftovers) {
@@ -409,6 +412,17 @@ function parseBody(
       if (name === "eff") {
         const effects = parseEffects(ctx, rawArgs, cur.line);
         if (effects.length > 0) container().push({ k: "effect", effects });
+      } else if (name === "outcome") {
+        const unknown = Object.keys(attrs).filter((k) => !["weight", "next"].includes(k));
+        if (unknown.length > 0) error(ctx, cur.line, "outcome-attr", `<<outcome>> 不认识的参数：${unknown.join(" / ")}`);
+        const weight = Number(attrs["weight"]);
+        const next = attrs["next"] ?? "";
+        if (!Number.isFinite(weight) || weight <= 0) error(ctx, cur.line, "outcome-weight", `<<outcome>> 的 weight 必须是正数`);
+        if (!PASSAGE_ID_RE.test(next)) error(ctx, cur.line, "outcome-next", `<<outcome>> 的 next 要写一个单元 id，读到「${next}」`);
+        if (openChoice) error(ctx, cur.line, "outcome-nested", "<<outcome>> 只能写在随机调度单元顶层");
+        if (Number.isFinite(weight) && weight > 0 && PASSAGE_ID_RE.test(next)) {
+          out.outcomes.push({ weight, next, pos: { line: cur.line } });
+        }
       } else {
         const target = rawArgs;
         if (!PASSAGE_ID_RE.test(target)) {
@@ -470,7 +484,7 @@ function parseBody(
       }
       if (openChoice) error(ctx, cur.line, "choice-nested", "选项不能嵌套在选项里");
       out.choices.push(choice);
-      parseBody(ctx, lines.slice(i + 1), { blocks: choice.blocks, choices: [] }, choice, "choice");
+      parseBody(ctx, lines.slice(i + 1), { blocks: choice.blocks, choices: [], outcomes: [] }, choice, "choice");
       i = skipToClose(i + 1, "choice");
       continue;
     }
@@ -517,7 +531,7 @@ function parseIf(ctx: Ctx, lines: BodyLine[], thenBlocks: IrBlock[], elseBlocks:
   let buffer: BodyLine[] = [];
   const flush = () => {
     if (buffer.length === 0) return;
-    parseBody(ctx, buffer, { blocks: mode === "then" ? thenBlocks : elseBlocks, choices: [] }, null, null);
+    parseBody(ctx, buffer, { blocks: mode === "then" ? thenBlocks : elseBlocks, choices: [], outcomes: [] }, null, null);
     buffer = [];
   };
   for (const cur of lines) {
@@ -556,7 +570,7 @@ function parseBand(ctx: Ctx, lines: BodyLine[], body: IrBlock[]): number {
   let buffer: BodyLine[] = [];
   const flush = () => {
     if (buffer.length === 0) return;
-    parseBody(ctx, buffer, { blocks: body, choices: [] }, null, null);
+    parseBody(ctx, buffer, { blocks: body, choices: [], outcomes: [] }, null, null);
     buffer = [];
   };
   for (const cur of lines) {
@@ -642,9 +656,18 @@ export function parseTwee(source: string, options: ParseOptions = {}): TweeProgr
     } else {
       ctx.seen.set(chunk.id, chunk.line);
     }
-    const out: BodyOut = { blocks: [], choices: [] };
+    const out: BodyOut = { blocks: [], choices: [], outcomes: [] };
     parseBody(ctx, chunk.body, out, null, null);
-    const passage: IrPassage = { id: chunk.id, tags: chunk.tags, meta, blocks: out.blocks, choices: out.choices, next: out.next, pos: { line: chunk.line } };
+    const passage: IrPassage = {
+      id: chunk.id,
+      tags: chunk.tags,
+      meta,
+      blocks: out.blocks,
+      choices: out.choices,
+      outcomes: out.outcomes,
+      next: out.next,
+      pos: { line: chunk.line },
+    };
     // 结果屏：`[result]` 的单元按 id 的点分父级自动接上返回，内容侧不用手写返回选项
     if (chunk.tags.includes("result") && passage.next === undefined) {
       const cut = chunk.id.lastIndexOf(".");
@@ -676,6 +699,16 @@ export function validateRefs(passages: IrPassage[], index: Record<string, number
     for (const c of p.choices) {
       if (c.next && index[c.next] === undefined) {
         out.push({ level: "error", code: "next-missing", message: `单元 ${p.id} 的选项 ${c.id} 指向不存在的单元：${c.next}`, line: c.pos.line });
+      }
+    }
+    for (const outcome of p.outcomes) {
+      if (index[outcome.next] === undefined) {
+        out.push({
+          level: "error",
+          code: "next-missing",
+          message: `随机调度单元 ${p.id} 的 outcome 指向不存在的单元：${outcome.next}`,
+          line: outcome.pos.line,
+        });
       }
     }
   }
@@ -796,8 +829,18 @@ function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>
   for (const p of passages) {
     for (const expr of passageExprs(p)) checkExpr(ctx, expr);
     const isTemplate = p.tags.includes("template");
+    const isRandom = p.tags.includes("random");
     if (isTemplate && p.next) {
       error(ctx, p.pos.line, "template-next", `涌现模板 ${p.id} 不能写 <<next>>（#22：模板固定原子性、无后续）`);
+    }
+    if (isRandom && p.outcomes.length === 0) {
+      error(ctx, p.pos.line, "random-empty", `随机调度单元 ${p.id} 至少要写一个 <<outcome>>`);
+    }
+    if (isRandom && (p.blocks.length > 0 || p.choices.length > 0 || p.next !== undefined)) {
+      error(ctx, p.pos.line, "random-content", `随机调度单元 ${p.id} 只能包含 <<outcome>>`);
+    }
+    if (!isRandom && p.outcomes.length > 0) {
+      error(ctx, p.pos.line, "outcome-outside-random", `单元 ${p.id} 写了 <<outcome>>，但没有 [random] 标签`);
     }
     p.choices.forEach((c, ci) => {
       if (p.choices.findIndex((x) => x.id === c.id) !== ci) {
@@ -813,7 +856,7 @@ function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>
         warn(ctx, c.pos.line, "exit-label", `单元 ${p.id} 的出行选项 ${c.id} 文案不统一：出行一律写「前往 + 地点名」，读到「${c.label}」`);
       }
     });
-    if (p.choices.length === 0 && p.next === undefined && !isTemplate && !p.tags.includes("action")) {
+    if (p.choices.length === 0 && p.next === undefined && !isTemplate && !isRandom && !p.tags.includes("action")) {
       warn(ctx, p.pos.line, "passage-no-choice", `单元 ${p.id} 既没有选项也没有 <<next>>：它是一条死路`);
     }
     if (p.next !== undefined && p.choices.length > 0 && p.choices.every((c) => c.stay)) {

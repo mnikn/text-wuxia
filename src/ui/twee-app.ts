@@ -22,12 +22,11 @@ import {
   formatMoney,
   itemCount,
   passageById,
-  SLICE_TUNE,
   type SliceState,
   type TweeOption,
   type TweeView,
 } from "../twee/runtime";
-import { createPrototypeState, isPrototypePresetId, PROTOTYPE_PRESETS, type PrototypePresetId } from "./prototype-launch";
+import { createPrototypeLaunch, isPrototypeLaunchId, PROTOTYPE_LAUNCHES, type PrototypeLaunchId } from "./prototype-launch";
 
 const program = { passages: PASSAGES, index: INDEX, diagnostics: [] } as unknown as TweeProgram;
 
@@ -39,10 +38,9 @@ let lastPassageId: string | null = null;
 const debugLauncher = import.meta.env.DEV
   ? `
     <div class="dev-launcher">
-      <span class="dev-label">开发直达</span>
-      <select id="dev-passage" aria-label="场景"></select>
-      <select id="dev-preset" aria-label="状态预设"></select>
-      <button class="btn" id="bt-dev-start">进入场景</button>
+      <span class="dev-label">开局模板</span>
+      <select id="dev-template" aria-label="开局模板"></select>
+      <button class="btn" id="bt-dev-start">开始</button>
     </div>
   `
   : "";
@@ -269,8 +267,23 @@ function choiceButton(opt: TweeOption): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.className = opt.exit ? "choice exit" : "choice";
   btn.disabled = Boolean(opt.blocked);
-  const small = opt.blocked ? `<small class="why">${opt.blocked}</small>` : opt.summary ? `<small>（${opt.summary}）</small>` : "";
-  btn.innerHTML = `<span>${opt.label}${opt.ke ? `（${formatKe(opt.ke)}）` : ""}</span>${small}`;
+  const label = document.createElement("span");
+  const risk = opt.label.match(/^(.*?)(（[^（）]*风险[^（）]*）)$/);
+  label.append(risk?.[1] ?? opt.label);
+  if (risk?.[2]) {
+    const warning = document.createElement("em");
+    warning.className = "risk";
+    warning.textContent = risk[2];
+    label.appendChild(warning);
+  }
+  if (opt.ke) label.append(`（${formatKe(opt.ke)}）`);
+  btn.appendChild(label);
+  if (opt.blocked || opt.summary) {
+    const small = document.createElement("small");
+    if (opt.blocked) small.className = "why";
+    small.textContent = opt.blocked ?? `（${opt.summary}）`;
+    btn.appendChild(small);
+  }
   btn.onclick = () => {
     view = chooseOption(program, state, view!.passageId, opt.id);
     render();
@@ -343,9 +356,10 @@ function setBag(open: boolean): void {
   $("bag").classList.toggle("on", open);
 }
 
-function startPrototype(passageId: string, presetId: PrototypePresetId): void {
-  state = createPrototypeState(presetId);
-  view = enterPassage(program, state, passageId);
+function startPrototype(launchId: PrototypeLaunchId): void {
+  const launch = createPrototypeLaunch(launchId);
+  state = launch.state;
+  view = enterPassage(program, state, launch.passageId);
   lastPassageId = null;
   $("screen-title").classList.remove("on");
   $("game").classList.add("on");
@@ -355,7 +369,7 @@ function startPrototype(passageId: string, presetId: PrototypePresetId): void {
 }
 
 function start(): void {
-  startPrototype(SLICE_TUNE.startPassage, "fresh");
+  startPrototype("beginning");
 }
 
 function toTitle(): void {
@@ -391,24 +405,17 @@ ringBtn.addEventListener("pointerleave", () => showBubble(false));
 ringBtn.addEventListener("blur", () => showBubble(false));
 
 if (import.meta.env.DEV) {
-  const passageSelect = $<HTMLSelectElement>("dev-passage");
-  const presetSelect = $<HTMLSelectElement>("dev-preset");
-  for (const passage of program.passages) {
+  const templateSelect = $<HTMLSelectElement>("dev-template");
+  for (const launch of PROTOTYPE_LAUNCHES) {
     const option = document.createElement("option");
-    option.value = passage.id;
-    option.textContent = passage.id;
-    passageSelect.appendChild(option);
-  }
-  for (const preset of PROTOTYPE_PRESETS) {
-    const option = document.createElement("option");
-    option.value = preset.id;
-    option.textContent = preset.label;
-    presetSelect.appendChild(option);
+    option.value = launch.id;
+    option.textContent = launch.label;
+    templateSelect.appendChild(option);
   }
 
   $("bt-dev-start").onclick = () => {
-    const presetId = presetSelect.value;
-    if (!isPrototypePresetId(presetId)) return;
-    startPrototype(passageSelect.value, presetId);
+    const launchId = templateSelect.value;
+    if (!isPrototypeLaunchId(launchId)) return;
+    startPrototype(launchId);
   };
 }

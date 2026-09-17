@@ -1,23 +1,30 @@
 import { createSliceState, type SliceState } from "../twee/runtime";
 
-export type PrototypePresetId = "fresh" | "opening-complete";
+type PrototypePresetId = "fresh" | "opening-complete";
+export type PrototypeLaunchId = "beginning" | "stonebridge-arrival";
 
-export const PROTOTYPE_PRESETS: ReadonlyArray<{ id: PrototypePresetId; label: string }> = [
-  { id: "fresh", label: "全新开局" },
-  { id: "opening-complete", label: "开场完成" },
+export const PROTOTYPE_LAUNCHES: ReadonlyArray<{
+  id: PrototypeLaunchId;
+  label: string;
+  passageId: string;
+  presetId: PrototypePresetId;
+}> = [
+  { id: "beginning", label: "一开始", passageId: "地点.家村.家中", presetId: "fresh" },
+  { id: "stonebridge-arrival", label: "初到石桥镇", passageId: "故事.石桥镇.初到", presetId: "opening-complete" },
 ];
 
-export function isPrototypePresetId(value: string): value is PrototypePresetId {
-  return PROTOTYPE_PRESETS.some((preset) => preset.id === value);
+export function isPrototypeLaunchId(value: string): value is PrototypeLaunchId {
+  return PROTOTYPE_LAUNCHES.some((launch) => launch.id === value);
 }
 
 /** 开发态场景预设：集中准备直达后置场景所需的完整状态。 */
-export function createPrototypeState(presetId: PrototypePresetId): SliceState {
+function createPrototypeState(presetId: PrototypePresetId): SliceState {
   const state = createSliceState();
   if (presetId === "fresh") return state;
 
   state.clock = { day: 1, minute: 17 * 60 };
   state.money = 500;
+  state.items = { 当票: 1 };
   state.visited = {
     看过剑: true,
     取剑: true,
@@ -27,4 +34,11 @@ export function createPrototypeState(presetId: PrototypePresetId): SliceState {
     "故事.开场.辞行": true,
   };
   return state;
+}
+
+/** 调试入口只暴露完整模板，调用方无需拼装 passage 与状态预设。 */
+export function createPrototypeLaunch(id: PrototypeLaunchId): { passageId: string; state: SliceState } {
+  const launch = PROTOTYPE_LAUNCHES.find((candidate) => candidate.id === id);
+  if (!launch) throw new Error(`没有这个开局模板：${id}`);
+  return { passageId: launch.passageId, state: createPrototypeState(launch.presetId) };
 }

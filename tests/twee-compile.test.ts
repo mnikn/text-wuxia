@@ -105,6 +105,35 @@ describe("选项与后续", () => {
   });
 });
 
+describe("随机调度单元", () => {
+  it("解析加权 outcome 并校验目标", () => {
+    const p = parseTwee(
+      join(
+        ":: 随机 [random]",
+        '<<outcome weight="3" next="结果.甲">>',
+        '<<outcome weight="1" next="结果.乙">>',
+        "",
+        ":: 结果.甲 [action]",
+        "甲。",
+        "",
+        ":: 结果.乙 [action]",
+        "乙。",
+        "",
+      ),
+    );
+    expect(errs(p.diagnostics)).toEqual([]);
+    expect(p.passages[0]!.outcomes).toEqual([
+      { weight: 3, next: "结果.甲", pos: { line: 2 } },
+      { weight: 1, next: "结果.乙", pos: { line: 3 } },
+    ]);
+  });
+
+  it("outcome 只能用于 random，且权重必须为正数", () => {
+    const p = parseTwee(join(":: a", '<<outcome weight="0" next="b">>', "", ":: b [action]", "乙。", ""));
+    expect(errs(p.diagnostics)).toContain("outcome-weight");
+  });
+});
+
 describe("就地结算（stay）", () => {
   it('stay="true" 解析成就地结算', () => {
     const p = parseTwee(
