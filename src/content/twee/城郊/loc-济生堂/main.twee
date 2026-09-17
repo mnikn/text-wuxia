@@ -3,7 +3,7 @@
 
 济生堂的柜台上摆着铜秤，墙上贴满药方。柜里的伙计抬眼看了看你，像是认得。
 
-<<choice id="buy" label="抓一星期的药" cost="money 300" show="item('药包') < 1">>
+<<choice id="buy" label="抓一星期的药" cost="money 300" show="item('药包') < 1 && !seen('开场.停留')">>
   <<eff item("药包") +1>>
   <<next 地点.济生堂.已抓药>>
 <</choice>>
