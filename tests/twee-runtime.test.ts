@@ -459,3 +459,50 @@ describe("时间按刻记", () => {
     expect(state.clock.minute - before).toBe(15);
   });
 });
+
+describe("行止记录与资源上限", () => {
+  /**
+   * 夹具：一个选项得失都有且带 next（落到结果单元，回程按 id 点分父级）；
+   * 另一个选项只回体力，用来试上限夹取。
+   */
+  const MIXED = join(
+    ":: g [scene]",
+    "",
+    "柜台前。",
+    "",
+    '<<choice id="trade" label="当了它" cost="time 1">>',
+    '<<eff item("剑") -1, money +1000, item("当票") +1>>',
+    "<<next g.已当>>",
+    "<</choice>>",
+    '<<choice id="rest" label="歇一会">>',
+    "<<eff stamina +40>>",
+    "<</choice>>",
+    "",
+    ":: g.已当 [scene result]",
+    '{"返回":"收好"}',
+    "",
+    "当完了。",
+    "",
+  );
+  const mixed = parseTwee(MIXED);
+
+  it("得失并作一行：带 next 落到结果单元也走合并", () => {
+    const state = createSliceState();
+    state.items["剑"] = 1;
+    enterPassage(mixed, state, "g");
+    const view = chooseOption(mixed, state, "g", "trade");
+    expect(view.passageId).toBe("g.已当");
+    expect(state.money).toBe(1000);
+    expect(state.recent.map((r) => r.text)).toEqual(["失去了剑，获得了 1 两银两、当票"]);
+    expect(state.recent[0]!.parts!.map((p) => p.kind)).toEqual(["loss", "note", "gain"]);
+  });
+
+  it("资源回满夹在上限：多回的部分不要", () => {
+    const state = createSliceState();
+    state.stamina.current = 80;
+    enterPassage(mixed, state, "g");
+    chooseOption(mixed, state, "g", "rest");
+    expect(state.stamina.current).toBe(100);
+    expect(state.recent.map((r) => r.text)).toEqual(["体力 +40"]);
+  });
+});

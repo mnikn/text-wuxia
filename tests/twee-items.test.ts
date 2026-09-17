@@ -1,7 +1,7 @@
 /**
  * 物品与负重：只覆盖机制——物品的增减、谓词、代价、负重硬门与校验门。
  * 夹具是内联的中性 twee，不读 src/content 下的故事；内容怎么改都不该弄红这里。
- * （开场内容侧的手玩核对见 planning/wayfinder-content-rewrite/playtest-物品与负重.md）
+ * （开场内容侧的手玩核对见 planning/wayfinder-content-rewrite/playtest-开场与谋生.md）
  */
 import { describe, expect, it } from "vitest";
 import { parseTwee } from "../src/twee/parse";

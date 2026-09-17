@@ -1,0 +1,28 @@
+:: 地点.村中心 [scene]
+{"地点":"村中心"}
+
+村中心的十字街口，几条土路在这里交到一处。井台边蹲着两个洗衣裳的妇人，卖柴的、卖菜的，把担子摆在自家惯常的位置上。
+
+往北是市集，粮摊的升子一下一下磕着斗沿。往东的巷口钉着块木牌，字掉了漆，上头一行还认得出「济生堂」，底下贴着一张黄纸，墨色尚新：城南苍岩别院招杂役，管饭。
+
+往西那家当铺的门槛磨得发亮，比别家都低一截。
+
+出村往北的土路，一直通到石桥镇去。
+
+<<choice id="toPawnshop" label="前往当铺" exit="true">>
+  <<next 地点.当铺>>
+<</choice>>
+<<choice id="toPharmacy" label="前往济生堂" exit="true">>
+  <<next 地点.济生堂>>
+<</choice>>
+<<choice id="toMarket" label="前往市集" exit="true">>
+  <<next 地点.市集>>
+<</choice>>
+<<choice id="toTown" label="前往石桥镇" exit="true" cost="time 64" show="seen('开场.停留')">>
+  你顺着土路往北，过了两道土岗，再沿洺水走。八个时辰的路，走到后来，脚底磨出了泡。
+
+  <<next 地点.石桥镇>>
+<</choice>>
+<<choice id="toHome" label="回家" exit="true" cost="time 2" show="seen('开场.停留') || (item('药包') >= 1 && item('米袋') >= 1)">>
+  <<next 地点.家门外>>
+<</choice>>

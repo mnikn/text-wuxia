@@ -7,8 +7,8 @@
   <<eff item("药包") +1>>
   <<next 地点.济生堂.已抓药>>
 <</choice>>
-<<choice id="toAlley" label="前往城中心" exit="true">>
-  <<next 地点.城中心>>
+<<choice id="toAlley" label="前往村中心" exit="true">>
+  <<next 地点.村中心>>
 <</choice>>
 
 :: 地点.济生堂.已抓药 [scene result]
