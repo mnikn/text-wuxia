@@ -4,15 +4,15 @@
 铺子里光线很暗，一股陈年的铜铁气。柜台高过胸口，柜面上搁着一杆铜秤、一把算盘。柜后的朝奉五十来岁，眼皮都没抬。
 
 <<if seen('当剑')>>
-柜台底下那堆铜铁里，压着你那把剑。
+  柜台底下那堆铜铁里，压着你那把剑。
 <</if>>
 
 <<choice id="pawn" label="当剑" mark="当剑" show="!seen('当剑')">>
-<<eff money +1000, item("剑") -1, item("当票") +1>>
-<<next 地点.当铺.已当>>
+  <<eff money +1000, item("剑") -1, item("当票") +1>>
+  <<next 地点.当铺.已当>>
 <</choice>>
 <<choice id="toAlley" label="前往城中心" exit="true">>
-<<next 地点.城中心>>
+  <<next 地点.城中心>>
 <</choice>>
 
 :: 地点.当铺.已当 [scene result]

@@ -4,11 +4,11 @@
 济生堂的柜台上摆着铜秤，墙上贴满药方。柜里的伙计抬眼看了看你，像是认得。
 
 <<choice id="buy" label="抓一星期的药" cost="money 300" show="item('药包') < 1">>
-<<eff item("药包") +1>>
-<<next 地点.济生堂.已抓药>>
+  <<eff item("药包") +1>>
+  <<next 地点.济生堂.已抓药>>
 <</choice>>
 <<choice id="toAlley" label="前往城中心" exit="true">>
-<<next 地点.城中心>>
+  <<next 地点.城中心>>
 <</choice>>
 
 :: 地点.济生堂.已抓药 [scene result]

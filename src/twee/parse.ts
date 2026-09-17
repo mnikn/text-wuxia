@@ -354,12 +354,15 @@ function parseBody(
 
     if (!trimmed.startsWith("<<")) {
       if (pendingText.length === 0) pendingLine = cur.line;
-      pendingText.push(cur.text);
+      // 行首空白只是排版缩进（见 format.ts），正文本身从行首第一个字算起
+      pendingText.push(cur.text.replace(/^[ 	]+/, ""));
       i++;
       continue;
     }
 
-    const hits = scanMacros(ctx, cur.text, cur.line);
+    // 行首缩进是排版（见 format.ts）：宏行可以缩进，但宏本身仍要独占整行
+    const code = cur.text.trimStart();
+    const hits = scanMacros(ctx, code, cur.line);
     if (hits.length === 0) {
       // 宏没闭合之类的问题已经在 scanMacros 里记过诊断，这行直接跳过
       i++;
@@ -367,7 +370,7 @@ function parseBody(
     }
     // 一行的宏必须独占整行
     const first = hits[0]!;
-    if (first.start !== 0 || cur.text.slice(first.end).trim() !== "") {
+    if (first.start !== 0 || code.slice(first.end).trim() !== "") {
       error(ctx, cur.line, "macro-inline", `宏要独占一行，不能和文字混排（第 ${cur.line} 行）`);
       i++;
       continue;

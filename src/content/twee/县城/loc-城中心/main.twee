@@ -8,14 +8,14 @@
 往西那家当铺的门槛磨得发亮，比别家都低一截。
 
 <<choice id="toPawnshop" label="前往当铺" exit="true">>
-<<next 地点.当铺>>
+  <<next 地点.当铺>>
 <</choice>>
 <<choice id="toPharmacy" label="前往济生堂" exit="true">>
-<<next 地点.济生堂>>
+  <<next 地点.济生堂>>
 <</choice>>
 <<choice id="toMarket" label="前往市集" exit="true">>
-<<next 地点.市集>>
+  <<next 地点.市集>>
 <</choice>>
 <<choice id="toHome" label="回家" exit="true" cost="time 2" show="item('米袋') >= 1 && item('药包') >= 1">>
-<<next 地点.家门外>>
+  <<next 地点.家门外>>
 <</choice>>

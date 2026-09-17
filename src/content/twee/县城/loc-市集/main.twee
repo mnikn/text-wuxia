@@ -6,14 +6,11 @@
 粮价一天一个价，排队的人已经懒得骂了。
 
 <<choice id="grain" label="买一星期的粮" cost="money 200" show="item('米袋') < 1">>
-<<eff item("米袋") +1>>
-<<next 地点.市集.已买粮>>
+  <<eff item("米袋") +1>>
+  <<next 地点.市集.已买粮>>
 <</choice>>
 <<choice id="toAlley" label="前往城中心" exit="true">>
-<<next 地点.城中心>>
-<</choice>>
-<<choice id="toHome" label="回家" exit="true" cost="time 2" show="item('米袋') >= 1 && item('药包') >= 1">>
-<<next 地点.家门外>>
+  <<next 地点.城中心>>
 <</choice>>
 
 :: 地点.市集.已买粮 [scene result]
