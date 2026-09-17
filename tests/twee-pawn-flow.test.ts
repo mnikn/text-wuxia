@@ -37,4 +37,61 @@ describe("真实内容：当剑", () => {
     expect(view.passageId).toBeTruthy();
     expect(state.recent.map((r) => r.text)).toEqual(["失去了剑，获得了 1 两银两、当票"]);
   });
+
+  it("城中心去当铺不耗时：城内的三处出口都不走时钟", () => {
+    const { passages, index } = compileContent();
+    const program = { passages, index, diagnostics: [] } as never;
+    const state = createSliceState();
+    const view = enterPassage(program, state, "地点.城中心");
+    for (const id of ["toPawnshop", "toPharmacy", "toMarket"]) {
+      expect(view.options.find((o) => o.id === id)!.ke).toBeUndefined();
+    }
+    const before = state.clock.minute;
+    chooseOption(program, state, "地点.城中心", "toPawnshop");
+    expect(state.clock.minute).toBe(before);
+  });
+});
+
+describe("真实内容：回家前置", () => {
+  it("只买了米：没有回家的选项", () => {
+    const { passages, index } = compileContent();
+    const program = { passages, index, diagnostics: [] } as never;
+    const state = createSliceState();
+    state.items["米袋"] = 1;
+    const view = enterPassage(program, state, "地点.城中心");
+    expect(view.options.map((o) => o.id)).not.toContain("toHome");
+    expect(view.options.map((o) => o.label)).not.toContain("回家");
+  });
+
+  it("只买了药：也没有回家的选项", () => {
+    const { passages, index } = compileContent();
+    const program = { passages, index, diagnostics: [] } as never;
+    const state = createSliceState();
+    state.items["药包"] = 1;
+    const view = enterPassage(program, state, "地点.市集");
+    expect(view.options.map((o) => o.id)).not.toContain("toHome");
+  });
+
+  it("米药齐备：回家的选项出现，直接到家", () => {
+    const { passages, index } = compileContent();
+    const program = { passages, index, diagnostics: [] } as never;
+    const state = createSliceState();
+    state.items["米袋"] = 1;
+    state.items["药包"] = 1;
+    state.visited["取剑"] = true;
+    const town = enterPassage(program, state, "地点.城中心");
+    expect(town.options.map((o) => o.id)).toContain("toHome");
+    const home = chooseOption(program, state, "地点.城中心", "toHome");
+    expect(home.passageId).toBe("地点.家门外");
+    expect(home.options.map((o) => o.id)).toContain("settle");
+  });
+
+  it("米药不齐时在家门外没有回屋歇下", () => {
+    const { passages, index } = compileContent();
+    const program = { passages, index, diagnostics: [] } as never;
+    const state = createSliceState();
+    state.items["米袋"] = 1;
+    const view = enterPassage(program, state, "地点.家门外");
+    expect(view.options.map((o) => o.id)).not.toContain("settle");
+  });
 });

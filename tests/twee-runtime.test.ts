@@ -7,7 +7,7 @@ import { parseTwee } from "../src/twee/parse";
 import {
   chooseOption,
   costSummary,
-  formatDuration,
+  formatKe,
   createSliceState,
   dateOf,
   enterPassage,
@@ -16,7 +16,7 @@ import {
   formatMoney,
   passageById,
   renderPassage,
-  snapToKe,
+  keToMinutes,
   type SliceState,
 } from "../src/twee/runtime";
 import { parseExpr } from "../src/twee/expr";
@@ -47,11 +47,11 @@ const SOURCE = join(
   ":: b [scene]",
   '{"地点":"乙地"}',
   "",
-  '<<choice id="pay" label="付钱" cost="time 15, money 300">>',
+  '<<choice id="pay" label="付钱" cost="time 1, money 300">>',
   "你付了钱。",
   "<<next c>>",
   "<</choice>>",
-  '<<choice id="earn" label="领赏" cost="time 5">>',
+  '<<choice id="earn" label="领赏" cost="time 1">>',
   "你领了赏。",
   "<<eff money +1500, stamina -10>>",
   "<<next c>>",
@@ -168,25 +168,24 @@ describe("代价与拦阻", () => {
     expect(costSummary(pay.cost, state)).toBe("花 300 文");
   });
 
-  it("耗时移到选项名后：duration 用武侠口径，摘要里不再出现", () => {
+  it("耗时移到选项名后：time 以刻计，摘要里不再出现", () => {
     const { state } = at("b");
     const view = renderPassage(passageById(program, "b")!, state, program);
     const opt = view.options.find((o) => o.id === "pay")!;
-    expect(opt.minutes).toBe(15);
+    expect(opt.ke).toBe(1);
     expect(opt.summary).not.toContain("耗时");
-    expect(formatDuration(opt.minutes!)).toBe("一刻");
+    expect(formatKe(opt.ke!)).toBe("一刻");
   });
 
-  it("时长最低一刻，只说刻与时辰", () => {
-    expect(formatDuration(5)).toBe("一刻");
-    expect(formatDuration(10)).toBe("一刻");
-    expect(formatDuration(15)).toBe("一刻");
-    expect(formatDuration(20)).toBe("两刻");
-    expect(formatDuration(45)).toBe("三刻");
-    expect(formatDuration(60)).toBe("半个时辰");
-    expect(formatDuration(120)).toBe("一个时辰");
-    expect(formatDuration(180)).toBe("一个半时辰");
-    expect(formatDuration(240)).toBe("两个时辰");
+  it("刻数转时长：一刻、两刻、半个时辰、一个时辰", () => {
+    expect(formatKe(1)).toBe("一刻");
+    expect(formatKe(2)).toBe("两刻");
+    expect(formatKe(3)).toBe("三刻");
+    expect(formatKe(4)).toBe("半个时辰");
+    expect(formatKe(8)).toBe("一个时辰");
+    expect(formatKe(12)).toBe("一个半时辰");
+    expect(formatKe(16)).toBe("两个时辰");
+    expect(formatKe(11)).toBe("一个时辰零三刻");
   });
 });
 
@@ -228,7 +227,7 @@ describe("就地结算（stay）与前后变化", () => {
     `<<choice id="look" label="细看" stay="true" mark="看过痕" show="!seen('看过痕')">>`,
     "你凑近看，看清了一道旧痕。",
     "<</choice>>",
-    `<<choice id="go" label="走" cost="time 30" show="seen('看过痕')">>`,
+    `<<choice id="go" label="走" cost="time 2" show="seen('看过痕')">>`,
     "你走了。",
     "<<next t>>",
     "<</choice>>",
@@ -443,21 +442,20 @@ describe("表达式求值", () => {
 });
 
 describe("时间按刻记", () => {
-  it("不足一刻的代价进到一刻：时钟走满 15 分钟，与边栏显示一致", () => {
+  it("time 1 即一刻：时钟走 15 分钟", () => {
     const { state } = at("b");
     const before = state.clock.minute;
-    chooseOption(program, state, "b", "earn"); // cost="time 5"
+    chooseOption(program, state, "b", "earn"); // cost="time 1"
     expect(state.clock.minute - before).toBe(15);
-    expect(snapToKe(5)).toBe(15);
-    expect(snapToKe(15)).toBe(15);
-    expect(snapToKe(20)).toBe(30);
+    expect(keToMinutes(1)).toBe(15);
+    expect(keToMinutes(2)).toBe(30);
   });
 
-  it("一刻的代价走一刻，不是 5 分钟", () => {
+  it("time 1 与代价摘要里的刻数一致", () => {
     const { state } = at("b");
     state.money = 1000;
     const before = state.clock.minute;
-    chooseOption(program, state, "b", "pay"); // cost="time 15, money 300"
+    chooseOption(program, state, "b", "pay"); // cost="time 1, money 300"
     expect(state.clock.minute - before).toBe(15);
   });
 });

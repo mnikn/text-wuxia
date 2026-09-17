@@ -9,15 +9,10 @@
 <<eff item("米袋") +1>>
 <<next 地点.市集.已买粮>>
 <</choice>>
-<<choice id="toRoad" label="前往官道" exit="true" cost="time 5" show="item('米袋') >= 1">>
-挤过两条街，南门的门洞就在眼前。
-
-<<next 地点.官道>>
-<</choice>>
-<<choice id="toAlley" label="前往城中心" exit="true" cost="time 10">>
+<<choice id="toAlley" label="前往城中心" exit="true">>
 <<next 地点.城中心>>
 <</choice>>
-<<choice id="toHome" label="回家" exit="true" cost="time 30">>
+<<choice id="toHome" label="回家" exit="true" cost="time 2" show="item('米袋') >= 1 && item('药包') >= 1">>
 <<next 地点.家门外>>
 <</choice>>
 

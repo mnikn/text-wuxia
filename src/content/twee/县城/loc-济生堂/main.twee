@@ -3,18 +3,12 @@
 
 济生堂的柜台上摆着铜秤，墙上贴满药方。柜里的伙计抬眼看了看你，像是认得。
 
-<<choice id="buy" label="抓一星期的药" cost="time 15, money 300" show="item('药包') < 1">>
+<<choice id="buy" label="抓一星期的药" cost="money 300" show="item('药包') < 1">>
 <<eff item("药包") +1>>
 <<next 地点.济生堂.已抓药>>
 <</choice>>
-<<choice id="toMarket" label="前往市集" exit="true" cost="time 5" show="item('药包') >= 1">>
-<<next 地点.市集>>
-<</choice>>
-<<choice id="toPawnshop" label="前往当铺" exit="true" cost="time 5">>
-<<next 地点.当铺>>
-<</choice>>
-<<choice id="toHome" label="回家" exit="true" cost="time 30">>
-<<next 地点.家门外>>
+<<choice id="toAlley" label="前往城中心" exit="true">>
+<<next 地点.城中心>>
 <</choice>>
 
 :: 地点.济生堂.已抓药 [scene result]

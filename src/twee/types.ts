@@ -42,7 +42,8 @@ export interface IrCostItem {
   pos: SourcePos;
 }
 
-/** 代价条目：效果条目的可支付子集 + time 保留字 */
+/** 代价条目：效果条目的可支付子集 + time 保留字。
+ * `time` 的单位是「刻」（一刻 15 分钟）：`time 1` 表示一刻，运行时按 15 分钟推进时钟。 */
 export interface IrCost {
   time?: IrAmount;
   money?: IrAmount;

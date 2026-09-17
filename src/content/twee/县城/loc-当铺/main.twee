@@ -11,11 +11,8 @@
 <<eff money +1000, item("剑") -1, item("当票") +1>>
 <<next 地点.当铺.已当>>
 <</choice>>
-<<choice id="toAlley" label="前往城中心" exit="true" cost="time 5">>
+<<choice id="toAlley" label="前往城中心" exit="true">>
 <<next 地点.城中心>>
-<</choice>>
-<<choice id="toHome" label="回家" exit="true" cost="time 30">>
-<<next 地点.家门外>>
 <</choice>>
 
 :: 地点.当铺.已当 [scene result]

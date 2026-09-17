@@ -51,13 +51,13 @@ const SOURCE = join(
   "空手。",
   "<</if>>",
   "",
-  '<<choice id="eat" label="吃药" cost="time 5, item(药包) 1">>',
+  '<<choice id="eat" label="吃药" cost="time 1, item(药包) 1">>',
   "<<eff stamina +20>>",
   "<</choice>>",
-  '<<choice id="buyRice" label="买粮" cost="time 20, money 200">>',
+  '<<choice id="buyRice" label="买粮" cost="time 2, money 200">>',
   '<<eff item("米袋") +1>>',
   "<</choice>>",
-  '<<choice id="haul" label="搬石碾" cost="time 10">>',
+  '<<choice id="haul" label="搬石碾" cost="time 1">>',
   '<<eff item("药包") +99>>',
   "<</choice>>",
   '<<choice id="pawn" label="当剑">>',
@@ -311,6 +311,6 @@ describe("解析产物", () => {
   it("代价里的物品条目：名字与量都在", () => {
     const cost = passageById(program, "街")!.choices.find((c) => c.id === "eat")!.cost!;
     expect(cost.items).toEqual([{ 名: "药包", 量: { kind: "literal", value: 1, pos: { line: 18 } }, pos: { line: 18 } }]);
-    expect(cost.time).toEqual({ kind: "literal", value: 5, pos: { line: 18 } });
+    expect(cost.time).toEqual({ kind: "literal", value: 1, pos: { line: 18 } });
   });
 });

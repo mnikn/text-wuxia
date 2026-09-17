@@ -39,7 +39,7 @@ describe("目录编译", () => {
         "",
         "柜台。",
         "",
-        '<<choice id="go" label="前往城郊家村" exit="true" cost="time 30">>',
+        '<<choice id="go" label="前往城郊家村" exit="true" cost="time 2">>',
         "<<next 地点.家门外>>",
         "<</choice>>",
         "",

@@ -49,11 +49,11 @@
 <<eff item("剑") +1>>
 <<next 地点.家门外.取剑>>
 <</choice>>
-<<choice id="settle" label="回屋歇下" show="item('米袋') >= 1">>
+<<choice id="settle" label="回屋歇下" show="item('米袋') >= 1 && item('药包') >= 1">>
 <<eff item("药包") -1>>
 <<next 开场.停留>>
 <</choice>>
-<<choice id="goTown" label="前往城中心" exit="true" cost="time 30" show="seen('取剑')">>
+<<choice id="goTown" label="前往城中心" exit="true" cost="time 2" show="seen('取剑')">>
 日头升到头顶，你随人流进了南门。
 
 <<next 地点.城中心>>

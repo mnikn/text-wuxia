@@ -2,6 +2,7 @@
  * Twee 编译器最小内核的测试（对应 #20 本批：只覆盖最短路径需要的子集）。
  */
 import { describe, expect, it } from "vitest";
+import { compileTweeDir } from "../src/vite/twee-plugin";
 import { parseTwee } from "../src/twee/parse";
 import { parseExpr, describeExpr } from "../src/twee/expr";
 import { emitModule, toPlain, summarize } from "../src/twee/emit";
@@ -49,7 +50,7 @@ describe("passage 头部", () => {
 
 const SRC = join(
   ":: a [scene]",
-  '<<choice id="help" label="上前搭手" cost="time 30">>',
+  '<<choice id="help" label="上前搭手" cost="time 2">>',
   "  你上前搭手。",
   "<<eff money +6, stamina -10>>",
   "<<next b>>",
@@ -72,7 +73,7 @@ describe("选项与后续", () => {
     expect(ps.choices.map((c) => c.id)).toEqual(["help", "go"]);
     const help = ps.choices[0]!;
     expect(help.label).toBe("上前搭手");
-    expect(help.cost?.time).toEqual({ kind: "literal", value: 30, pos: { line: 2 } });
+    expect(help.cost?.time).toEqual({ kind: "literal", value: 2, pos: { line: 2 } });
     expect(help.next).toBe("b");
     expect(help.blocks).toContainEqual({
       k: "effect",
@@ -89,7 +90,7 @@ describe("选项与后续", () => {
   });
 
   it("量的字面量写 0 给 warning（没有作用）", () => {
-    const p = parseTwee(join(":: a", '<<choice id="x" label="甲" cost="time 30">>', "<<eff money +0>>", "<</choice>>", ""));
+    const p = parseTwee(join(":: a", '<<choice id="x" label="甲" cost="time 2">>', "<<eff money +0>>", "<</choice>>", ""));
     expect(warns(p.diagnostics)).toContain("eff-zero");
   });
 
@@ -153,7 +154,7 @@ describe("就地结算（stay）", () => {
 describe("出行（地点）", () => {
   it('exit="true" 解析成出行', () => {
     const p = parseTwee(
-      join(":: a [scene]", '<<choice id="go" label="前往当铺" exit="true" cost="time 5">>', "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""),
+      join(":: a [scene]", '<<choice id="go" label="前往当铺" exit="true" cost="time 1">>', "<<next b>>", "<</choice>>", "", ":: b [scene]", "乙", ""),
     );
     expect(errs(p.diagnostics)).toEqual([]);
     const c = p.passages[0]!.choices[0]!;
@@ -329,5 +330,30 @@ describe("发射产物", () => {
 
   it("summarize 报单元数、选项数与诊断计数", () => {
     expect(summarize(parseTwee(SRC))).toContain("2 个单元、2 个选项");
+  });
+});
+
+describe("耗时以刻计", () => {
+  it("time 1 合法：一刻", () => {
+    const p = parseTwee(join(":: a", '<<choice id="x" label="走" cost="time 1">>', "<</choice>>", ""));
+    expect(errs(p.diagnostics)).toEqual([]);
+    expect(p.passages[0]!.choices[0]!.cost?.time).toEqual({ kind: "literal", value: 1, pos: { line: 2 } });
+  });
+
+  it("整刻多写几刻都合法：time 5 是五刻", () => {
+    const p = parseTwee(join(":: a", '<<choice id="x" label="走" cost="time 5">>', "<</choice>>", ""));
+    expect(errs(p.diagnostics)).toEqual([]);
+  });
+
+  it("0 与小数刻报错", () => {
+    for (const bad of ["0", "0.5"]) {
+      const p = parseTwee(join(":: a", `<<choice id="x" label="走" cost="time ${bad}">>`, "<</choice>>", ""));
+      expect(errs(p.diagnostics)).toContain("cost-time-ke");
+    }
+  });
+
+  it("真实内容目录过校验门，无 error", () => {
+    const r = compileTweeDir("src/content/twee");
+    expect(r.errors).toEqual([]);
   });
 });

@@ -278,6 +278,13 @@ function parseCost(ctx: Ctx, raw: string, line: number): IrCost | undefined {
     }
     const delta = parseAmount(ctx, m[2]!, line, `代价项 ${entry}`);
     if (!delta) continue;
+    // 时间的单位是刻（一刻 15 分钟）：只收不小于 1 的整数刻，写分钟数会悄悄错开一档
+    if (key === "time" && delta.kind === "literal") {
+      const ke = Number(delta.value);
+      if (!Number.isInteger(ke) || ke < 1) {
+        error(ctx, line, "cost-time-ke", `耗时以刻为单位（一刻 15 分钟），写 \`time 1\` 表示一刻（读到 ${m[2]!}）`);
+      }
+    }
     cost[key as "time" | "money" | "stamina" | "neili"] = delta;
     any = true;
   }

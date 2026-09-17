@@ -334,12 +334,14 @@ export function payCost(cost: IrCost | undefined, state: SliceState, tune?: Reco
   if (cost.stamina) state.stamina.current = clamp(state.stamina.current - amountValue(cost.stamina, tune), 0, state.stamina.max);
   if (cost.neili) state.neili.current = clamp(state.neili.current - amountValue(cost.neili, tune), 0, state.neili.max);
   for (const it of cost.items ?? []) bumpItem(state, it.名, -amountValue(it.量, tune));
-  if (cost.time) advance(state, snapToKe(amountValue(cost.time, tune)));
+  if (cost.time) advance(state, keToMinutes(amountValue(cost.time, tune)));
 }
 
-/** 时间按刻记：不足一刻进到一刻（15 分钟一档），边栏的刻数与实际推进量才对得上。 */
-export function snapToKe(minutes: number): number {
-  return minutes <= 0 ? 0 : Math.max(15, Math.ceil(minutes / 15) * 15);
+/** 一刻 = 15 分钟：代价里的 time 以刻计，推进时钟时要换成分钟。 */
+export const MINUTES_PER_KE = 15;
+
+export function keToMinutes(ke: number): number {
+  return Math.max(0, ke) * MINUTES_PER_KE;
 }
 
 export function advance(state: SliceState, minutes: number): void {
@@ -485,8 +487,8 @@ export interface TweeOption {
   label: string;
   summary?: string;
   blocked?: string;
-  /** 耗时（分钟）：选项名后缀 `(0:30)` 用 */
-  minutes?: number;
+  /** 耗时（刻，一刻 15 分钟）：选项名后缀 `（两刻）` 用 */
+  ke?: number;
   /** 出行选项（前往别的地点），UI 与本地行动分组 */
   exit?: boolean;
 }
@@ -513,18 +515,17 @@ function cnNum(n: number): string {
   return `${CN_DIGIT[tens]}十${ones ? CN_DIGIT[ones] : ""}`;
 }
 
-/** 分钟数转武侠口径的时长：最低一刻（不足一刻进一刻），只说刻与时辰。 */
-export function formatDuration(min: number): string {
-  if (min >= 60 && min % 60 === 0) {
-    const halves = min / 60;
-    const whole = Math.floor(halves / 2);
-    const rest = halves % 2 === 1;
-    if (whole === 0) return "半个时辰";
-    if (rest) return `${cnNum(whole)}个半时辰`;
-    return `${whole === 2 ? "两" : cnNum(whole)}个时辰`;
-  }
-  const ke = Math.max(1, Math.ceil(min / 15));
-  return `${ke === 2 ? "两" : cnNum(ke)}刻`;
+/** 刻数转武侠口径的时长：一刻 / 两刻 / 半个时辰 / 一个时辰 / 一个半时辰 / 一个时辰零三刻。 */
+export function formatKe(ke: number): string {
+  const n = Math.max(1, Math.round(ke));
+  const cn = (x: number): string => (x === 2 ? "两" : cnNum(x));
+  if (n === 4) return "半个时辰";
+  const whole = Math.floor(n / 8);
+  const rest = n % 8;
+  if (whole === 0) return `${cn(n)}刻`;
+  if (rest === 0) return `${cn(whole)}个时辰`;
+  if (rest === 4) return `${cn(whole)}个半时辰`;
+  return `${cn(whole)}个时辰零${cn(rest)}刻`;
 }
 
 /** 分钟数转 `h:mm`：5 → 0:05，90 → 1:30。 */
@@ -604,7 +605,7 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
         label: c.label,
         summary: costSummary(c.cost, state),
         blocked: blockedReason(c, state),
-        minutes: time?.kind === "literal" ? Number(time.value) : undefined,
+        ke: time?.kind === "literal" ? Number(time.value) : undefined,
         exit: c.exit,
       };
     });

@@ -18,7 +18,7 @@ import {
   dateOf,
   enterPassage,
   followNext,
-  formatDuration,
+  formatKe,
   formatMoney,
   itemCount,
   passageById,
@@ -258,7 +258,7 @@ function choiceButton(opt: TweeOption): HTMLButtonElement {
   btn.className = opt.exit ? "choice exit" : "choice";
   btn.disabled = Boolean(opt.blocked);
   const small = opt.blocked ? `<small class="why">${opt.blocked}</small>` : opt.summary ? `<small>（${opt.summary}）</small>` : "";
-  btn.innerHTML = `<span>${opt.label}${opt.minutes ? ` (${formatDuration(opt.minutes)})` : ""}</span>${small}`;
+  btn.innerHTML = `<span>${opt.label}${opt.ke ? `（${formatKe(opt.ke)}）` : ""}</span>${small}`;
   btn.onclick = () => {
     view = chooseOption(program, state, view!.passageId, opt.id);
     render();
