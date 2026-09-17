@@ -1,19 +1,19 @@
-:: 地点.市集 [scene]
+:: 地点.家村.市集 [scene]
 {"地点":"市集"}
 
 市集上的粮价写在木牌上，几天一换。几处粮摊前都排着人，摊后的掌柜拿升子量米，量完还要用手抹平。
 
 粮价一天一个价，排队的人已经懒得骂了。
 
-<<choice id="grain" label="买一星期的粮" cost="money 200" show="item('米袋') < 1 && !seen('开场.停留')">>
+<<choice id="grain" label="买一星期的粮" cost="money 200" show="item('米袋') < 1 && !seen('故事.开场.煮饭熬药')">>
   <<eff item("米袋") +1>>
-  <<next 地点.市集.已买粮>>
+  <<next 地点.家村.市集.买粮结果>>
 <</choice>>
 <<choice id="toAlley" label="前往村中心" exit="true">>
-  <<next 地点.村中心>>
+  <<next 地点.家村.村中心>>
 <</choice>>
 
-:: 地点.市集.已买粮 [scene result]
+:: 地点.家村.市集.买粮结果 [scene result]
 {"返回":"把粮扛上肩"}
 
 二百文，掌柜称好倒进你的布袋，又抓了一把添上，把袋口扎紧。

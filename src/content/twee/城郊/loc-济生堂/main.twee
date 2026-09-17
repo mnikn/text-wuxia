@@ -1,17 +1,17 @@
-:: 地点.济生堂 [scene]
+:: 地点.家村.济生堂 [scene]
 {"地点":"济生堂"}
 
 济生堂的柜台上摆着铜秤，墙上贴满药方。柜里的伙计抬眼看了看你，像是认得。
 
-<<choice id="buy" label="抓一星期的药" cost="money 300" show="item('药包') < 1 && !seen('开场.停留')">>
+<<choice id="buy" label="抓一星期的药" cost="money 300" show="item('药包') < 1 && !seen('故事.开场.煮饭熬药')">>
   <<eff item("药包") +1>>
-  <<next 地点.济生堂.已抓药>>
+  <<next 地点.家村.济生堂.抓药结果>>
 <</choice>>
 <<choice id="toAlley" label="前往村中心" exit="true">>
-  <<next 地点.村中心>>
+  <<next 地点.家村.村中心>>
 <</choice>>
 
-:: 地点.济生堂.已抓药 [scene result]
+:: 地点.家村.济生堂.抓药结果 [scene result]
 {"返回":"把药收好"}
 
 七剂，三百文。药包用粗纸拧成七个角，绳头一个个扎紧，摞成一小摞。

@@ -47,8 +47,8 @@ export const SLICE_TUNE = {
   carryMax: 20,
   day: 1,
   minute: 7 * 60, // 开场辰时正（时辰口径见 twee-app 的 shichenName）
-  home: "城郊家村",
-  startPassage: "地点.家门外",
+  home: "家中",
+  startPassage: "地点.家村.家中",
 };
 
 export function createSliceState(): SliceState {

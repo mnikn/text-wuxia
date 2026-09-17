@@ -1,4 +1,4 @@
-:: 地点.村中心 [scene]
+:: 地点.家村.村中心 [scene]
 {"地点":"村中心"}
 
 村中心的十字街口，几条土路在这里交到一处。井台边蹲着两个洗衣裳的妇人，卖柴的、卖菜的，把担子摆在自家惯常的位置上。
@@ -10,19 +10,19 @@
 出村往北的土路，一直通到石桥镇去。
 
 <<choice id="toPawnshop" label="前往当铺" exit="true">>
-  <<next 地点.当铺>>
+  <<next 地点.家村.当铺>>
 <</choice>>
 <<choice id="toPharmacy" label="前往济生堂" exit="true">>
-  <<next 地点.济生堂>>
+  <<next 地点.家村.济生堂>>
 <</choice>>
 <<choice id="toMarket" label="前往市集" exit="true">>
-  <<next 地点.市集>>
+  <<next 地点.家村.市集>>
 <</choice>>
-<<choice id="toTown" label="前往石桥镇" exit="true" cost="time 64" show="seen('开场.停留')">>
+<<choice id="toTown" label="前往石桥镇" exit="true" cost="time 64" show="seen('故事.开场.煮饭熬药')">>
   你顺着土路往北，过了两道土岗，再沿洺水走。八个时辰的路，走到后来，脚底磨出了泡。
 
-  <<next 石桥镇.初到>>
+  <<next 故事.石桥镇.初到>>
 <</choice>>
-<<choice id="toHome" label="回家" exit="true" cost="time 2" show="seen('开场.停留') || (item('药包') >= 1 && item('米袋') >= 1)">>
-  <<next 地点.家门外>>
+<<choice id="toHome" label="回家" exit="true" cost="time 2" show="seen('故事.开场.煮饭熬药') || (item('药包') >= 1 && item('米袋') >= 1)">>
+  <<next 地点.家村.家中>>
 <</choice>>

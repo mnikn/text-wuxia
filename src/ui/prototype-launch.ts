@@ -22,10 +22,9 @@ export function createPrototypeState(presetId: PrototypePresetId): SliceState {
     看过剑: true,
     取剑: true,
     当剑: true,
-    "开场.停留": true,
-    "开场.盘算": true,
-    "开场.辞行": true,
+    "故事.开场.煮饭熬药": true,
+    "故事.开场.谋生打算": true,
+    "故事.开场.辞行": true,
   };
   return state;
 }
-
