@@ -28,6 +28,9 @@
 <<choice id="toWharf" label="前往码头" exit="true">>
   <<next 地点.石桥镇.码头>>
 <</choice>>
+<<choice id="toEatery" label="前往食肆" exit="true">>
+  <<next 地点.石桥镇.食肆>>
+<</choice>>
 <<choice id="lookUnderBridge" label="去桥下看看" exit="true">>
   <<next 地点.石桥镇.桥下>>
 <</choice>>
@@ -67,6 +70,28 @@
 {"返回":"记下了"}
 
 「运河那边来的，卸完装车，往北边州城去。」他吐了口唾沫，「问这个做什么？扛你的。」
+
+:: 地点.石桥镇.食肆 [scene]
+{"地点":"石桥镇·食肆"}
+
+<<if hour >= 5 && hour < 21>>
+  食肆里支着几张方桌，灶上的白汽一直没断。掌柜娘子一边下面一边招呼：「吃点热的？十文一碗，管饱。」
+<<else>>
+  食肆上了板，灶是凉的，门缝里透出一点灯。
+<</if>>
+
+<<choice id="meal" label="吃一碗热汤面" good-result-hint="回一部分体力" cost="time 1, money 10" show="hour >= 5 && hour < 21">>
+  <<eff stamina +30>>
+  <<next 地点.石桥镇.食肆.吃饭结果>>
+<</choice>>
+<<choice id="back" label="回镇街" exit="true">>
+  <<next 地点.石桥镇.镇街>>
+<</choice>>
+
+:: 地点.石桥镇.食肆.吃饭结果 [scene result]
+{"返回":"抹抹嘴"}
+
+面端上来，油花浮在汤上。你几口吃净，连汤也喝了，身上暖起来。
 
 :: 故事.石桥镇.问脚店住宿 [scene]
 
