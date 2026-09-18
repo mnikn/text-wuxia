@@ -212,6 +212,7 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
 #game.side-open .rail { display: none; }
 #game .rail .rail-label, #game .rail .rail-date span { letter-spacing: 1px;
   font-size: 12.5px; color: #6b6357; font-variant-numeric: tabular-nums; }
+#game .rail .rail-money { font-size: 12.5px; color: #6b6357; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
 #game .rail .rail-ring { position: relative; width: 34px; height: 34px; flex: none; display: grid; place-items: center; padding: 0; }
 #game .rail .ring { width: 30px; height: 30px; transform: rotate(-90deg); }
 #game .rail .ring circle { fill: none; stroke-width: 3; }

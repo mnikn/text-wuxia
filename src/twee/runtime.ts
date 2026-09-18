@@ -260,27 +260,27 @@ export function carryCapacity(): number {
 }
 
 /** 单个效果条目带来的重量变化（不是物品条目就是 0）。 */
-function itemWeightDelta(eff: IrEff, tune?: Record<string, number>): number {
+function itemWeightDelta(eff: IrEff, state: SliceState, tune?: Record<string, number>): number {
   if (eff.target !== "item" || !eff.item) return 0;
-  return itemWeight(eff.item) * amountValue(eff.delta, tune);
+  return itemWeight(eff.item) * amountValue(eff.delta, state, tune);
 }
 
 /** 一组块里物品重量的净增上界：分支结构取各分支最大者，不把互斥的分支相加。 */
-function weightGainUpper(blocks: IrBlock[], tune?: Record<string, number>): number {
+function weightGainUpper(blocks: IrBlock[], state: SliceState, tune?: Record<string, number>): number {
   let sum = 0;
   for (const b of blocks) {
     switch (b.k) {
       case "effect":
-        for (const eff of b.effects) sum += itemWeightDelta(eff, tune);
+        for (const eff of b.effects) sum += itemWeightDelta(eff, state, tune);
         break;
       case "if": {
-        const branches = b.branches.map((x) => weightGainUpper(x.body, tune));
-        if (b.elseBody) branches.push(weightGainUpper(b.elseBody, tune));
+        const branches = b.branches.map((x) => weightGainUpper(x.body, state, tune));
+        if (b.elseBody) branches.push(weightGainUpper(b.elseBody, state, tune));
         if (branches.length > 0) sum += Math.max(...branches);
         break;
       }
       case "band":
-        sum += weightGainUpper(b.body, tune);
+        sum += weightGainUpper(b.body, state, tune);
         break;
       default:
         break;
@@ -304,21 +304,33 @@ export interface CarryCheck {
  */
 export function checkCarry(choice: IrChoice, state: SliceState, tune?: Record<string, number>): CarryCheck {
   const capacity = carryCapacity();
-  let delta = weightGainUpper(choice.blocks, tune);
+  let delta = weightGainUpper(choice.blocks, state, tune);
   for (const it of choice.cost?.items ?? []) {
-    delta -= itemWeight(it.名) * amountValue(it.量, tune);
+    delta -= itemWeight(it.名) * amountValue(it.量, state, tune);
   }
   const projected = carryWeight(state) + delta;
   return { ok: projected <= capacity, reason: projected <= capacity ? undefined : "背不动了", projected, capacity };
 }
 
-function amountValue(amount: IrAmount, tune: Record<string, number> = {}): number {
+function amountValue(amount: IrAmount, state: SliceState, tune: Record<string, number> = {}): number {
   if (amount.kind === "literal") return Number(amount.value);
+  if (amount.kind === "call") return helperAmount(String(amount.value), state);
   const v = tune[String(amount.value)];
   if (v === undefined) {
     throw new Error(`tune 表里没有 ${String(amount.value)}`);
   }
   return v;
+}
+
+/** 量的具名 helper（名字白名单在 parse.ts 的 AMOUNT_HELPERS，两边对齐）。 */
+function helperAmount(name: string, state: SliceState): number {
+  if (name === "到天亮") {
+    // 睡到次日卯时（05:00）所需的刻数；正好在卯时按一整天算（内容侧有夜间门挡着，用不到）
+    const now = ((state.clock.minute % 1440) + 1440) % 1440;
+    const minutes = (((5 * 60 - now) % 1440) + 1440) % 1440 || 1440;
+    return Math.round(minutes / 15);
+  }
+  throw new Error(`没登记的 helper：${name}()`);
 }
 
 export interface CostCheck {
@@ -331,13 +343,13 @@ export function checkCost(cost: IrCost | undefined, state: SliceState, tune?: Re
   if (!cost) return { ok: true, reasons: [] };
   const reasons: string[] = [];
   if (cost.money) {
-    const need = amountValue(cost.money, tune);
+    const need = amountValue(cost.money, state, tune);
     if (state.money < need) reasons.push(`银钱不足（需 ${formatMoney(need)}）`);
   }
-  if (cost.stamina && state.stamina.current < amountValue(cost.stamina, tune)) reasons.push("体力不支");
-  if (cost.neili && state.neili.current < amountValue(cost.neili, tune)) reasons.push("内力不足");
+  if (cost.stamina && state.stamina.current < amountValue(cost.stamina, state, tune)) reasons.push("体力不支");
+  if (cost.neili && state.neili.current < amountValue(cost.neili, state, tune)) reasons.push("内力不足");
   for (const it of cost.items ?? []) {
-    if (itemCount(state, it.名) < amountValue(it.量, tune)) reasons.push(`${itemName(it.名)}不足`);
+    if (itemCount(state, it.名) < amountValue(it.量, state, tune)) reasons.push(`${itemName(it.名)}不足`);
   }
   return { ok: reasons.length === 0, reasons };
 }
@@ -345,11 +357,11 @@ export function checkCost(cost: IrCost | undefined, state: SliceState, tune?: Re
 /** 付代价：资源走扣减，时间走时钟推进，物品走扣货（#16 的执行分流）。 */
 export function payCost(cost: IrCost | undefined, state: SliceState, tune?: Record<string, number>): void {
   if (!cost) return;
-  if (cost.money) state.money = Math.max(0, state.money - amountValue(cost.money, tune));
-  if (cost.stamina) state.stamina.current = clamp(state.stamina.current - amountValue(cost.stamina, tune), 0, state.stamina.max);
-  if (cost.neili) state.neili.current = clamp(state.neili.current - amountValue(cost.neili, tune), 0, state.neili.max);
-  for (const it of cost.items ?? []) bumpItem(state, it.名, -amountValue(it.量, tune));
-  if (cost.time) advance(state, keToMinutes(amountValue(cost.time, tune)));
+  if (cost.money) state.money = Math.max(0, state.money - amountValue(cost.money, state, tune));
+  if (cost.stamina) state.stamina.current = clamp(state.stamina.current - amountValue(cost.stamina, state, tune), 0, state.stamina.max);
+  if (cost.neili) state.neili.current = clamp(state.neili.current - amountValue(cost.neili, state, tune), 0, state.neili.max);
+  for (const it of cost.items ?? []) bumpItem(state, it.名, -amountValue(it.量, state, tune));
+  if (cost.time) advance(state, keToMinutes(amountValue(cost.time, state, tune)));
 }
 
 /** 一刻 = 15 分钟：代价里的 time 以刻计，推进时钟时要换成分钟。 */
@@ -369,7 +381,7 @@ export function advance(state: SliceState, minutes: number): void {
 
 /** 应用效果条目。方向（增 / 减）在引擎这边定，UI 只管按 kind 上色。 */
 export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string, number>): RecentLine | null {
-  const delta = amountValue(eff.delta, tune);
+  const delta = amountValue(eff.delta, state, tune);
   const tone: RecentLine["kind"] = delta >= 0 ? "gain" : "loss";
   const sign = delta >= 0 ? "+" : "";
   switch (eff.target) {
@@ -537,10 +549,10 @@ export function formatMinutes(min: number): string {
 export function costSummary(cost: IrCost | undefined, state: SliceState, tune?: Record<string, number>): string | undefined {
   if (!cost) return undefined;
   const parts: string[] = [];
-  if (cost.money) parts.push(`花 ${formatMoney(amountValue(cost.money, tune))}`);
-  if (cost.stamina) parts.push(`耗体力 ${amountValue(cost.stamina, tune)}`);
-  if (cost.neili) parts.push(`耗内力 ${amountValue(cost.neili, tune)}`);
-  for (const it of cost.items ?? []) parts.push(`耗${itemName(it.名)} ${amountValue(it.量, tune)}`);
+  if (cost.money) parts.push(`花 ${formatMoney(amountValue(cost.money, state, tune))}`);
+  if (cost.stamina) parts.push(`耗体力 ${amountValue(cost.stamina, state, tune)}`);
+  if (cost.neili) parts.push(`耗内力 ${amountValue(cost.neili, state, tune)}`);
+  for (const it of cost.items ?? []) parts.push(`耗${itemName(it.名)} ${amountValue(it.量, state, tune)}`);
   const blocked = checkCost(cost, state, tune);
   return parts.length === 0 ? undefined : parts.join("，") + (blocked.ok ? "" : `，${blocked.reasons.join("、")}`);
 }
@@ -605,7 +617,8 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
         label: c.label,
         summary: costSummary(c.cost, state),
         blocked: blockedReason(c, state),
-        ke: time?.kind === "literal" ? Number(time.value) : undefined,
+        // 耗时后缀：字面量与 helper 都当场算给玩家看（tune 键渲染期不查表）
+        ke: time && time.kind !== "tune" ? amountValue(time, state) : undefined,
         exit: c.exit,
         goodResultHint: c.goodResultHint,
         badResultHint: c.badResultHint,

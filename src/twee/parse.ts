@@ -181,12 +181,23 @@ const MARK_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff.-]*$/;
 /** 单元 id：允许点分（`开场.家门外`），命名约定见 #16 与票据 009 */
 const PASSAGE_ID_RE = /^[A-Za-z_\u4e00-\u9fff][\w\u4e00-\u9fff.-]*$/;
 
+/** 量的具名 helper 白名单（返回一个数）：引擎侧实现，内容侧只能点名。 */
+const AMOUNT_HELPERS = new Set(["到天亮"]);
+
 function parseAmount(ctx: Ctx, raw: string, line: number, who: string): IrAmount | null {
   const text = raw.trim();
   const tune = /^tune\.([\w\u4e00-\u9fff.]+)$/.exec(text);
   if (tune) return { kind: "tune", value: tune[1]!, pos: { line } };
+  const call = /^([\w\u4e00-\u9fff]+)\(\)$/.exec(text);
+  if (call) {
+    if (!AMOUNT_HELPERS.has(call[1]!)) {
+      error(ctx, line, "amount-helper", `${who} 的量用了没登记的 helper「${call[1]}()」；当前登记：${[...AMOUNT_HELPERS].join(" / ")}`);
+      return null;
+    }
+    return { kind: "call", value: call[1]!, pos: { line } };
+  }
   if (/^[+-]?\d+(\.\d+)?$/.test(text)) return { kind: "literal", value: Number(text), pos: { line } };
-  error(ctx, line, "amount-form", `${who} 的量只能是字面量或 \`tune.\` 键，读到「${text}」；效果条目禁裸算术`);
+  error(ctx, line, "amount-form", `${who} 的量只能是字面量、\`tune.\` 键或登记过的 helper 调用，读到「${text}」；效果条目禁裸算术`);
   return null;
 }
 

@@ -99,6 +99,8 @@ app.innerHTML = `
         <span class="bubble" id="rail-bubble"></span>
       </button>
       <!-- 窄栏也要能看行囊：手机上收起状态栏是默认态 -->
+      <span class="rail-label">银钱</span>
+      <span class="rail-money" id="rail-money"></span>
       <button class="rail-bag" id="bt-bag-rail">行囊</button>
     </div>
     <!-- 行囊：居中弹框（复用 .overlay 的模态样式），侧栏与窄栏各有一个入口 -->
@@ -204,6 +206,7 @@ function renderSide(): void {
   // 窄栏：圆环只画比例，具体数值藏在按住的浮字里；日期只留月日与时刻
   $("rail-month").textContent = monthDayName(date.month, date.day);
   $("rail-time").innerHTML = `${dayPartSvg(state.clock.minute)}<span>${shichenName(state.clock.minute)}</span>`;
+  $("rail-money").textContent = formatMoney(state.money);
   $("rail-bubble").textContent = `${state.stamina.current} / ${state.stamina.max}`;
   const ring = $("ring-fg") as unknown as SVGCircleElement;
   ring.style.strokeDashoffset = String(RING_LEN * (1 - pct / 100));

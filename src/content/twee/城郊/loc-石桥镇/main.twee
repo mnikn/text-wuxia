@@ -70,11 +70,15 @@
 
 :: 故事.石桥镇.问脚店住宿 [scene]
 
-脚店里摆着几张旧桌，柜后挂满木牌。掌柜拨着算盘，抬头看了你一眼。
+<<if hour >= 17 || hour < 5>>
+  脚店里摆着几张旧桌，柜后挂满木牌。掌柜拨着算盘，抬头看了你一眼。
 
-「后院有通铺，三十文一夜。被褥旧些，门倒是闩得牢。」
+  「后院有通铺，三十文一夜。被褥旧些，门倒是闩得牢。」
+<<else>>
+  脚店里摆着几张旧桌，柜后空着。半晌，掌柜才从后院出来，摆了摆手：「通铺天黑才开，要住店，晚上再来。」
+<</if>>
 
-<<choice id="stay" label="住一夜" good-result-hint="体力回满" cost="money 30, time 48">>
+<<choice id="stay" label="住一夜" good-result-hint="体力回满" cost="money 30, time 到天亮()" show="hour >= 17 || hour < 5">>
   <<eff stamina +100>>
   <<next 故事.石桥镇.脚店过夜>>
 <</choice>>
@@ -95,11 +99,15 @@
 :: 地点.石桥镇.桥下 [scene]
 {"地点":"石桥镇·桥下"}
 
-桥洞里带着水腥气，靠墙铺着几张破席。几个脚夫各自抱紧包袱，谁也不多看谁。
+<<if hour >= 17 || hour < 5>>
+  桥洞里带着水腥气，靠墙铺着几张破席。几个脚夫各自抱紧包袱，谁也不多看谁。
 
-一个须发花白的汉子往里挪了挪：「睡便睡，别占路。夜里有人摸东西，丢了可没人替你找。」
+  一个须发花白的汉子往里挪了挪：「睡便睡，别占路。夜里有人摸东西，丢了可没人替你找。」
+<<else>>
+  桥洞里空荡荡的，破席卷在墙根。白日里没有人在这儿过夜。
+<</if>>
 
-<<choice id="sleep" label="找个空处躺下" good-result-hint="回一部分体力" bad-result-hint="有失窃风险" cost="time 48">>
+<<choice id="sleep" label="找个空处躺下" good-result-hint="回一部分体力" bad-result-hint="有失窃风险" cost="time 到天亮()" show="hour >= 17 || hour < 5">>
   <<next 故事.石桥镇.桥下过夜>>
 <</choice>>
 <<choice id="back" label="回镇街" exit="true">>

@@ -19,9 +19,9 @@ export type Expr =
   | { k: "and" | "or"; xs: Expr[]; pos: SourcePos }
   | { k: "op"; left: Expr; op: "==" | "!=" | "<" | "<=" | ">" | ">="; right: Expr; pos: SourcePos };
 
-/** 效果条目：`<目标> <量>`，量只能是字面量或 tune 键（裸算术一律 error） */
+/** 效果条目：`<目标> <量>`，量只能是字面量、tune 键或登记过的具名 helper（裸算术一律 error） */
 export interface IrAmount {
-  kind: "literal" | "tune";
+  kind: "literal" | "tune" | "call";
   value: number | string;
   pos: SourcePos;
 }

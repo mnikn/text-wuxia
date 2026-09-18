@@ -327,6 +327,49 @@ describe("共享动作（[action] 与 @back）", () => {
   });
 });
 
+describe("量的具名 helper（到天亮）", () => {
+  const sleepProgram = parseTwee(
+    join(
+      ":: 店 [scene]",
+      '{"地点":"店"}',
+      "",
+      "店里。",
+      "",
+      '<<choice id="sleep" label="睡到天亮" cost="time 到天亮()">>',
+      "<<next 醒>>",
+      "<</choice>>",
+      "",
+      ":: 醒 [scene]",
+      "天亮了。",
+      "",
+    ),
+  );
+
+  it("解析成 call 量；没登记的 helper 报错", () => {
+    expect(errs(sleepProgram.diagnostics)).toEqual([]);
+    expect(sleepProgram.passages[0]!.choices[0]!.cost?.time).toEqual({ kind: "call", value: "到天亮", pos: { line: 6 } });
+    const bad = parseTwee(join(":: a [scene]", "", '<<choice id="x" label="睡" cost="time 到立春()">>', "<<next a>>", "<</choice>>", ""));
+    expect(errs(bad.diagnostics)).toContain("amount-helper");
+  });
+
+  it("按当前时刻算到卯时的刻数，付代价即推进到卯时", () => {
+    const cases: [number, number][] = [
+      [17 * 60, 48], // 酉时正 → 六个时辰
+      [21 * 60, 32], // 亥时正 → 四个时辰
+      [0, 20], // 子时正
+      [2 * 60, 12], // 丑时正
+    ];
+    for (const [minute, ke] of cases) {
+      const s = createSliceState();
+      s.clock = { day: 1, minute };
+      const view = enterPassage(sleepProgram, s, "店");
+      expect(view.options[0]!.ke).toBe(ke);
+      chooseOption(sleepProgram, s, "店", "sleep");
+      expect(s.clock.minute % 1440).toBe(5 * 60);
+    }
+  });
+});
+
 describe("选中选项", () => {
   it("无代价：不动时间与资源；选项没写 next 时落到单元级 next", () => {
     const { state } = at("a");
