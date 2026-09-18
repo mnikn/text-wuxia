@@ -365,7 +365,7 @@ export function applyEffect(eff: IrEff, state: SliceState, tune?: Record<string,
   switch (eff.target) {
     case "money":
       state.money = Math.max(0, state.money + delta);
-      return { text: `${delta >= 0 ? "获得了 " : "花掉了 "}${moneyAmount(delta)}`, kind: tone };
+      return { text: `${delta >= 0 ? "获得了 " : "失去了 "}${moneyAmount(delta)}`, kind: tone };
     case "stamina":
       state.stamina.current = clamp(state.stamina.current + delta, 0, state.stamina.max);
       return { text: `体力 ${sign}${delta}`, kind: tone };
@@ -401,7 +401,7 @@ function clamp(v: number, min: number, max: number): number {
 }
 
 const GAIN_PREFIX = [/^获得了 /, /^你获得了/];
-const LOSS_PREFIX = [/^花掉了 /, /^你失去了/];
+const LOSS_PREFIX = [/^失去了 /, /^你失去了/];
 
 /** 前缀接内容：数字开头（银钱）空一格，物件名直接连上（「失去了剑」「获得了 1 两银两」）。 */
 function withPrefix(prefix: string, parts: string[]): string {
@@ -409,79 +409,59 @@ function withPrefix(prefix: string, parts: string[]): string {
   return /^[0-9]/.test(body) ? `${prefix} ${body}` : `${prefix}${body}`;
 }
 
-/** 一次行动的得失并作一行：有得有失是「失去了剑，获得了 1 两银两、当票」，
- * 只有失是「花掉了 300 文、剑」，只有得是「获得了 300 文、剑」。
- * 单条获得/失去维持原话（物件是「你获得了剑」）；体力这类不带前后缀的行不参与合并。 */
+interface MergePart {
+  text: string;
+  /** 带前缀的是钱与物件（要去前缀再统一加）；体力/内力/生命自带符号，原样并列 */
+  prefixed: boolean;
+}
+
+/**
+ * 一次行动的得失并作一行：「失去了 200 文，体力 +30」「失去了剑，获得了 1 两银两、当票」。
+ * 失在前、得在后；钱排最前、物件跟后。只有一条时维持原话（物件是「你获得了剑」）。
+ */
 function mergeRecent(lines: RecentLine[]): RecentLine[] {
-  const gainParts: string[] = [];
-  const lossParts: string[] = [];
-  let lossHadMoney = false;
+  const gains: MergePart[] = [];
+  const losses: MergePart[] = [];
   for (const l of lines) {
-    const gain = GAIN_PREFIX.find((re) => re.test(l.text));
-    const loss = gain ? undefined : LOSS_PREFIX.find((re) => re.test(l.text));
-    if (gain && l.kind === "gain") gainParts.push(l.text.replace(gain, ""));
-    else if (loss && l.kind === "loss") {
-      lossParts.push(l.text.replace(loss, ""));
-      if (loss === LOSS_PREFIX[0]) lossHadMoney = true;
-    }
+    if (l.kind !== "gain" && l.kind !== "loss") continue;
+    const hit = (l.kind === "gain" ? GAIN_PREFIX : LOSS_PREFIX).find((re) => re.test(l.text));
+    (l.kind === "gain" ? gains : losses).push({ text: hit ? l.text.replace(hit, "") : l.text, prefixed: hit !== undefined });
   }
-  if (gainParts.length === 0 && lossParts.length === 0) return lines;
-  // 钱排最前，物件跟后
-  const moneyFirst = (a: string, b: string): number => Number(/^[0-9]/.test(b)) - Number(/^[0-9]/.test(a));
-  gainParts.sort(moneyFirst);
-  lossParts.sort(moneyFirst);
-  // 得失都有：并成一行，得失前缀都归并，这条行按原行序列里首次出现的位置落位
-  if (gainParts.length > 0 && lossParts.length > 0) {
-    const lossWord = lossHadMoney && lossParts.length === 1 ? "花掉了" : "失去了";
-    const lossSeg = withPrefix(lossWord, lossParts);
-    const gainSeg = withPrefix("获得了", gainParts);
-    const combined: RecentLine = {
-      text: `${lossSeg}，${gainSeg}`,
-      kind: "note",
-      parts: [
-        { text: lossSeg, kind: "loss" },
-        { text: "，", kind: "note" },
-        { text: gainSeg, kind: "gain" },
-      ],
-    };
-    const merged: RecentLine[] = [];
-    let placed = false;
-    for (const l of lines) {
-      const isGainLoss =
-        (GAIN_PREFIX.some((re) => re.test(l.text)) && l.kind === "gain") || (LOSS_PREFIX.some((re) => re.test(l.text)) && l.kind === "loss");
-      if (!placed && isGainLoss) {
-        merged.push(combined);
-        placed = true;
-        continue;
-      }
-      if (isGainLoss) continue;
-      merged.push(l);
-    }
-    if (!placed) merged.push(combined);
-    return merged;
-  }
-  // 同向多条才归并；单条维持原话
-  const isGain = gainParts.length > 0;
-  const parts = isGain ? gainParts : lossParts;
-  if (parts.length === 1) return lines;
+  if (gains.length + losses.length <= 1) return lines;
+
+  const moneyFirst = (a: MergePart, b: MergePart): number => Number(/^[0-9]/.test(b.text)) - Number(/^[0-9]/.test(a.text));
+  gains.sort(moneyFirst);
+  losses.sort(moneyFirst);
+
+  const segs: { text: string; kind: "gain" | "loss" }[] = [];
+  const pushSide = (parts: MergePart[], word: "获得了" | "失去了", kind: "gain" | "loss"): void => {
+    const prefixed = parts.filter((p) => p.prefixed).map((p) => p.text);
+    if (prefixed.length > 0) segs.push({ text: withPrefix(word, prefixed), kind });
+    const self = parts.filter((p) => !p.prefixed).map((p) => p.text);
+    if (self.length > 0) segs.push({ text: self.join("、"), kind });
+  };
+  pushSide(losses, "失去了", "loss");
+  pushSide(gains, "获得了", "gain");
+
+  const combined: RecentLine = {
+    text: segs.map((s) => s.text).join("，"),
+    kind: segs.length > 1 ? "note" : segs[0]!.kind,
+    parts: segs.flatMap((s, i) => (i === 0 ? [{ text: s.text, kind: s.kind }] : [{ text: "，", kind: "note" }, { text: s.text, kind: s.kind }])),
+  };
+  // 并出来的行落在原行序列里第一条得失行的位置，其余得失行并掉
   const merged: RecentLine[] = [];
-  const line: RecentLine = isGain
-    ? { text: withPrefix("获得了", parts), kind: "gain" }
-    : { text: withPrefix(lossHadMoney ? "花掉了" : "失去了", parts), kind: "loss" };
-  const prefix = isGain ? GAIN_PREFIX : LOSS_PREFIX;
-  const kind = isGain ? "gain" : "loss";
   let placed = false;
   for (const l of lines) {
-    const hit = prefix.some((re) => re.test(l.text)) && l.kind === kind;
-    if (!placed && hit) {
-      merged.push(line);
+    const isGainLoss = l.kind === "gain" || l.kind === "loss";
+    if (!placed && isGainLoss) {
+      merged.push(combined);
       placed = true;
       continue;
     }
-    if (hit) continue;
+    if (isGainLoss) continue;
     merged.push(l);
   }
-  if (!placed) merged.push(line);
+  if (!placed) merged.push(combined);
   return merged;
 }
 
@@ -512,6 +492,8 @@ export interface TweeView {
   appended?: string[];
   /** 「继续」按钮的文案（结果屏用 meta.返回 覆盖） */
   nextLabel?: string;
+  /** 延迟掷骰时暴露的候选结果（开发态强制定向用；正常流程下随机单元不留屏） */
+  outcomes?: ReadonlyArray<{ weight: number; next: string }>;
 }
 
 const CN_DIGIT = "零一二三四五六七八九";
@@ -639,6 +621,29 @@ export function passageById(program: TweeProgram, id: string): IrPassage | null 
   return program.passages[i] ?? null;
 }
 
+/** 进入单元的选项：`deferRandom` 只给开发态用——随机单元先留屏、把候选结果交给调用方强制定向。 */
+export interface EnterOptions {
+  deferRandom?: boolean;
+}
+
+/** 到达结算：走一遍正文块里的 <<eff>>（含 <<if>> 命中分支），按书写顺序应用。 */
+function applyEntryEffects(blocks: IrBlock[], state: SliceState): RecentLine[] {
+  const lines: RecentLine[] = [];
+  for (const block of blocks) {
+    if (block.k === "effect") {
+      for (const eff of block.effects) {
+        const line = applyEffect(eff, state);
+        if (line) lines.push(line);
+      }
+    } else if (block.k === "if") {
+      const branch = block.branches.find((b) => truthy(evalExpr(b.cond, state)));
+      const body = branch?.body ?? block.elseBody;
+      if (body) lines.push(...applyEntryEffects(body, state));
+    }
+  }
+  return lines;
+}
+
 /** 进入一个单元：记访问、按头部元数据更新地点、清行止记录、判定是否已到自由行动。 */
 export function enterPassage(
   program: TweeProgram,
@@ -646,33 +651,62 @@ export function enterPassage(
   id: string,
   recent: RecentLine[] = [],
   choiceText: string[] = [],
+  opts: EnterOptions = {},
 ): TweeView {
   const passage = passageById(program, id);
   if (!passage) throw new Error(`没有这个单元：${id}`);
+  const firstVisit = state.visited[id] !== true;
   state.visited[id] = true;
   if (passage.meta.地点) state.location = passage.meta.地点;
+  // [settle]：到达即结算，只算第一次（重进不重复扣）
+  const settled = firstVisit && passage.tags.includes("settle") ? mergeRecent(applyEntryEffects(passage.blocks, state)) : [];
+  const arrived = settled.length > 0 ? [...recent, ...settled] : recent;
   if (passage.tags.includes("random")) {
-    const picked = weightedPick(state.random, passage.outcomes, (outcome) => outcome.weight);
-    if (picked.index < 0) throw new Error(`随机调度单元 ${id} 没有可选 outcome`);
-    state.random = picked.rng;
-    return enterPassage(program, state, passage.outcomes[picked.index]!.next, recent, choiceText);
+    if (!opts.deferRandom) {
+      const picked = weightedPick(state.random, passage.outcomes, (outcome) => outcome.weight);
+      if (picked.index < 0) throw new Error(`随机调度单元 ${id} 没有可选 outcome`);
+      state.random = picked.rng;
+      return enterPassage(program, state, passage.outcomes[picked.index]!.next, arrived, choiceText, opts);
+    }
+    state.recent = arrived;
+    state.pendingText = choiceText;
+    const view = renderPassage(passage, state, program);
+    // 随机单元本就没有选项与出口，别让 UI 当成「自由行动」屏
+    view.atFreeActions = false;
+    view.outcomes = passage.outcomes.map((outcome) => ({ weight: outcome.weight, next: outcome.next }));
+    return view;
   }
-  state.recent = recent;
+  state.recent = arrived;
   // 选项正文与目标单元正文连排：玩家先看到自己干的那件事，再看到落到的场景
   state.pendingText = choiceText;
   state.atFreeActions = passage.choices.length === 0 && passage.next === undefined;
   return renderPassage(passage, state, program);
 }
 
+/** 开发态强制定向：不掷骰，直接走指定的一条 outcome（时间与效果照常由目标单元结算）。 */
+export function takeOutcome(
+  program: TweeProgram,
+  state: SliceState,
+  passageId: string,
+  index: number,
+  opts: EnterOptions = {},
+): TweeView {
+  const passage = passageById(program, passageId);
+  if (!passage) throw new Error(`没有这个单元：${passageId}`);
+  const outcome = passage.outcomes[index];
+  if (!outcome) throw new Error(`单元 ${passageId} 没有第 ${index + 1} 条 outcome`);
+  return enterPassage(program, state, outcome.next, state.recent, state.pendingText ?? [], opts);
+}
+
 /** 自动前进：只有 next、没有选项的段落用。返回 null 表示已经到底。 */
-export function followNext(program: TweeProgram, state: SliceState, passage: IrPassage): TweeView | null {
+export function followNext(program: TweeProgram, state: SliceState, passage: IrPassage, opts: EnterOptions = {}): TweeView | null {
   if (passage.next === undefined) return null;
   state.pendingText = [];
-  return enterPassage(program, state, passage.next);
+  return enterPassage(program, state, passage.next, [], [], opts);
 }
 
 /** 选中一个选项：付代价 → 应用效果 → 前进。 */
-export function chooseOption(program: TweeProgram, state: SliceState, passageId: string, choiceId: string): TweeView {
+export function chooseOption(program: TweeProgram, state: SliceState, passageId: string, choiceId: string, opts: EnterOptions = {}): TweeView {
   const passage = passageById(program, passageId);
   if (!passage) throw new Error(`没有这个单元：${passageId}`);
   const choice = passage.choices.find((c) => c.id === choiceId);
@@ -711,7 +745,7 @@ export function chooseOption(program: TweeProgram, state: SliceState, passageId:
     state.atFreeActions = true;
     return renderPassage(passage, state, program);
   }
-  return enterPassage(program, state, nextId, mergeRecent(lines), choiceParas);
+  return enterPassage(program, state, nextId, mergeRecent(lines), choiceParas, opts);
 }
 
 /* ---------------- 构建期校验门（IR 之外） ---------------- */

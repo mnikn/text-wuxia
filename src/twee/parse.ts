@@ -869,5 +869,26 @@ function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>
     if (p.next !== undefined && p.choices.length > 0 && p.choices.every((c) => c.stay)) {
       warn(ctx, p.pos.line, "stay-next", `单元 ${p.id} 的选项全是 stay="true"（就地结算），单元级 <<next>> 永远走不到`);
     }
+    // 到达结算（[settle]）：正文里的 <<eff>> 只在首次进入时应用，没标签就是死效果
+    const bodyEffectCount = countEffectBlocks(p.blocks);
+    if (p.tags.includes("settle") && bodyEffectCount === 0) {
+      warn(ctx, p.pos.line, "settle-empty", `单元 ${p.id} 标了 [settle]，正文里却没有 <<eff>>`);
+    }
+    if (!p.tags.includes("settle") && bodyEffectCount > 0 && !isRandom) {
+      warn(ctx, p.pos.line, "settle-tag", `单元 ${p.id} 正文里有 <<eff>>，但没有 [settle] 标签：到达结算要标 [settle]，否则这些效果不会生效`);
+    }
   }
+}
+
+/** 数一数正文块里的效果条目（含 <<if>> 各分支）：只给 [settle] 校验用。 */
+function countEffectBlocks(blocks: IrBlock[]): number {
+  let n = 0;
+  for (const block of blocks) {
+    if (block.k === "effect") n += block.effects.length;
+    else if (block.k === "if") {
+      for (const branch of block.branches) n += countEffectBlocks(branch.body);
+      if (block.elseBody) n += countEffectBlocks(block.elseBody);
+    }
+  }
+  return n;
 }

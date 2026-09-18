@@ -151,7 +151,7 @@ describe("物品效果", () => {
     expect(s.recent.map((r) => r.kind)).toEqual(["gain"]);
   });
 
-  it("同时失去多样东西并作一行；只有钱时仍说花掉了", () => {
+  it("同时失去多样东西并作一行：失在前、钱排最前", () => {
     const both = parseTwee(join(
       ":: a [scene]", "",
       '<<choice id="c" label="都丢">>',
@@ -163,7 +163,23 @@ describe("物品效果", () => {
     s.money = 500;
     enterPassage(both, s, "a");
     chooseOption(both, s, "a", "c");
-    expect(s.recent.map((r) => r.text)).toEqual(["花掉了 300 文、剑"]);
+    expect(s.recent.map((r) => r.text)).toEqual(["失去了 300 文、剑"]);
+  });
+
+  it("钱与体力并作一行：前缀段与自带符号段接在一行里", () => {
+    const mixed = parseTwee(join(
+      ":: a [scene]", "",
+      '<<choice id="c" label="又丢又累">>',
+      '<<eff money -300, stamina -20>>',
+      "<</choice>>", "",
+    ));
+    const s = createSliceState();
+    s.money = 500;
+    enterPassage(mixed, s, "a");
+    chooseOption(mixed, s, "a", "c");
+    expect(s.recent.map((r) => r.text)).toEqual(["失去了 300 文，体力 -20"]);
+    expect(s.recent.map((r) => r.kind)).toEqual(["note"]);
+    expect(s.recent[0]!.parts!.map((p) => p.kind)).toEqual(["loss", "note", "loss"]);
   });
 });
 

@@ -17,16 +17,18 @@ import {
   createSliceState,
   dateOf,
   enterPassage,
+  type EnterOptions,
   followNext,
   formatKe,
   formatMoney,
   itemCount,
   passageById,
+  takeOutcome,
   type SliceState,
   type TweeOption,
   type TweeView,
 } from "../twee/runtime";
-import { createPrototypeLaunch, isPrototypeLaunchId, PROTOTYPE_LAUNCHES, type PrototypeLaunchId } from "./prototype-launch";
+import { createPrototypeLaunch, createPrototypeState, isPrototypeLaunchId, isPrototypePresetId, PROTOTYPE_LAUNCHES, PROTOTYPE_PRESETS, type PrototypeLaunchId } from "./prototype-launch";
 
 const program = { passages: PASSAGES, index: INDEX, diagnostics: [] } as unknown as TweeProgram;
 
@@ -41,6 +43,12 @@ const debugLauncher = import.meta.env.DEV
       <span class="dev-label">开局模板</span>
       <select id="dev-template" aria-label="开局模板"></select>
       <button class="btn" id="bt-dev-start">开始</button>
+    </div>
+    <div class="dev-launcher">
+      <span class="dev-label">直达单元</span>
+      <select id="dev-goto" aria-label="直达单元"></select>
+      <select id="dev-preset" aria-label="状态预设"></select>
+      <button class="btn" id="bt-dev-goto">进入</button>
     </div>
   `
   : "";
@@ -288,7 +296,7 @@ function choiceButton(opt: TweeOption): HTMLButtonElement {
   appendHint(opt.goodResultHint, "good");
   appendHint(opt.badResultHint, "risk");
   btn.onclick = () => {
-    view = chooseOption(program, state, view!.passageId, opt.id);
+    view = chooseOption(program, state, view!.passageId, opt.id, DEV_ENTER);
     render();
   };
   return btn;
@@ -304,12 +312,14 @@ function renderChoices(): void {
     return;
   }
   if (v.options.length === 0) {
+    // 随机单元延迟掷骰时不留「继续」按钮：行动全交给下面的「强制结果」组
+    if (v.outcomes && v.outcomes.length > 0) return;
     const btn = document.createElement("button");
     btn.className = "choice";
     btn.innerHTML = `<span>${v.nextLabel ?? "继续"}</span>`;
     btn.onclick = () => {
       const passage = passageById(program, v.passageId);
-      const next = passage ? followNext(program, state, passage) : null;
+      const next = passage ? followNext(program, state, passage, DEV_ENTER) : null;
       if (next) {
         view = next;
         render();
@@ -337,12 +347,54 @@ function renderChoices(): void {
   }
 }
 
+/** 开发态：随机单元不掷骰，先留屏等强制定向（正式版恒为空对象） */
+const DEV_ENTER: EnterOptions = import.meta.env.DEV ? { deferRandom: true } : {};
+
+/** 开发态专用：随机单元屏上的「强制结果」按钮组（含按权重掷骰那条正路）。 */
+function renderForces(): void {
+  const box = $("choices");
+  const outcomes = view?.outcomes;
+  if (!import.meta.env.DEV || !outcomes || outcomes.length === 0) return;
+  const group = document.createElement("div");
+  group.className = "choice-group dev-forces";
+  const h = document.createElement("h3");
+  h.className = "group-title";
+  h.textContent = "强制结果";
+  group.appendChild(h);
+  outcomes.forEach((outcome, index) => {
+    const btn = document.createElement("button");
+    btn.className = "choice";
+    btn.append(`${outcome.next}`);
+    const mark = document.createElement("em");
+    mark.className = "why";
+    mark.textContent = `（权重 ${outcome.weight}）`;
+    btn.appendChild(mark);
+    btn.onclick = () => {
+      view = takeOutcome(program, state, view!.passageId, index, DEV_ENTER);
+      render();
+    };
+    group.appendChild(btn);
+  });
+  const roll = document.createElement("button");
+  roll.className = "choice";
+  roll.append("按权重掷骰");
+  roll.onclick = () => {
+    const passage = passageById(program, view!.passageId);
+    if (!passage) return;
+    view = enterPassage(program, state, passage.id);
+    render();
+  };
+  group.appendChild(roll);
+  box.appendChild(group);
+}
+
 function render(): void {
   if (!view) return;
   renderSide();
   renderBag();
   const appended = renderStory();
   renderChoices();
+  renderForces();
   const scroller = document.querySelector("#game .scroll");
   if (scroller) scroller.scrollTop = appended ? scroller.scrollHeight : 0;
 }
@@ -359,16 +411,21 @@ function setBag(open: boolean): void {
   $("bag").classList.toggle("on", open);
 }
 
-function startPrototype(launchId: PrototypeLaunchId): void {
-  const launch = createPrototypeLaunch(launchId);
-  state = launch.state;
-  view = enterPassage(program, state, launch.passageId);
+/** 上手就位：装好状态、进指定单元、切到游戏屏。开局模板与开发态直达共用。 */
+function enterAt(passageId: string, nextState: SliceState): void {
+  state = nextState;
+  view = enterPassage(program, state, passageId, [], [], DEV_ENTER);
   lastPassageId = null;
   $("screen-title").classList.remove("on");
   $("game").classList.add("on");
   setSide(wide());
   setBag(false);
   render();
+}
+
+function startPrototype(launchId: PrototypeLaunchId): void {
+  const launch = createPrototypeLaunch(launchId);
+  enterAt(launch.passageId, launch.state);
 }
 
 function start(): void {
@@ -420,5 +477,28 @@ if (import.meta.env.DEV) {
     const launchId = templateSelect.value;
     if (!isPrototypeLaunchId(launchId)) return;
     startPrototype(launchId);
+  };
+
+  // 直达：列出全部单元（按内容文件的书写顺序），配状态预设——验收单屏文案与结算用，尤其随机事件的结果支
+  const gotoSelect = $<HTMLSelectElement>("dev-goto");
+  for (const passage of PASSAGES) {
+    const option = document.createElement("option");
+    option.value = passage.id;
+    option.textContent = passage.id;
+    gotoSelect.appendChild(option);
+  }
+
+  const presetSelect = $<HTMLSelectElement>("dev-preset");
+  for (const preset of PROTOTYPE_PRESETS) {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    presetSelect.appendChild(option);
+  }
+
+  $("bt-dev-goto").onclick = () => {
+    const presetId = presetSelect.value;
+    if (!isPrototypePresetId(presetId)) return;
+    enterAt(gotoSelect.value, createPrototypeState(presetId));
   };
 }

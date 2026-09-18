@@ -17,11 +17,13 @@ import {
   passageById,
   renderPassage,
   keToMinutes,
+  takeOutcome,
   type SliceState,
 } from "../src/twee/runtime";
 import { parseExpr } from "../src/twee/expr";
 
 const join = (...lines: string[]) => lines.join("\n");
+const warns = (diags: { level: string; code: string }[]) => diags.filter((d) => d.level === "warning").map((d) => d.code);
 
 /**
  * 夹具：
@@ -130,6 +132,105 @@ describe("随机调度", () => {
   });
 });
 
+describe("随机单元的强制定向（开发态延迟掷骰）", () => {
+  const randomProgram = parseTwee(
+    join(
+      ":: 随机 [random]",
+      '<<outcome weight="3" next="结果.甲">>',
+      '<<outcome weight="1" next="结果.乙">>',
+      "",
+      ":: 结果.甲 [action]",
+      "甲。",
+      "",
+      ":: 结果.乙 [action]",
+      "乙。",
+      "",
+    ),
+  );
+
+  it("deferRandom：留在随机单元、暴露候选结果、不推进 rng", () => {
+    const state = createSliceState();
+    const before = JSON.stringify(state.random);
+    const view = enterPassage(randomProgram, state, "随机", [], [], { deferRandom: true });
+    expect(view.passageId).toBe("随机");
+    expect(view.outcomes).toEqual([
+      { weight: 3, next: "结果.甲" },
+      { weight: 1, next: "结果.乙" },
+    ]);
+    expect(view.atFreeActions).toBe(false);
+    expect(JSON.stringify(state.random)).toBe(before);
+  });
+
+  it("takeOutcome：走指定分支，不掷骰", () => {
+    const state = createSliceState();
+    const before = JSON.stringify(state.random);
+    enterPassage(randomProgram, state, "随机", [], [], { deferRandom: true });
+    const view = takeOutcome(randomProgram, state, "随机", 1);
+    expect(view.passageId).toBe("结果.乙");
+    expect(JSON.stringify(state.random)).toBe(before);
+  });
+
+  it("不开 deferRandom 时仍当场掷骰进结果屏", () => {
+    const state = createSliceState();
+    const view = enterPassage(randomProgram, state, "随机");
+    expect(["结果.甲", "结果.乙"]).toContain(view.passageId);
+    expect(state.random.cursor).toBe(1);
+  });
+});
+
+describe("到达结算（[settle]）", () => {
+  const settleProgram = parseTwee(
+    join(
+      ":: 甲 [scene settle]",
+      "",
+      "到了。",
+      "",
+      "<<if money >= 100>>",
+      "  钱够，罚一百。",
+      "  <<eff money -100, stamina -5>>",
+      "<<else>>",
+      "  钱不够，只掉体力。",
+      "  <<eff stamina -5>>",
+      "<</if>>",
+      "",
+      ":: 乙 [scene]",
+      "",
+      "空手到。",
+      "",
+      "<<eff stamina -7>>",
+      "",
+    ),
+  );
+
+  it("首次进入即结算，结算行进视图；重进不再扣", () => {
+    const state = createSliceState();
+    state.money = 500;
+    const stamina0 = state.stamina.current;
+    const first = enterPassage(settleProgram, state, "甲");
+    expect(state.money).toBe(400);
+    expect(state.stamina.current).toBe(stamina0 - 5);
+    expect(first.recent.length).toBeGreaterThan(0);
+    const second = enterPassage(settleProgram, state, "甲");
+    expect(state.money).toBe(400);
+    expect(second.recent).toEqual([]);
+  });
+
+  it("按分支只走命中的那一条", () => {
+    const state = createSliceState();
+    state.money = 0;
+    enterPassage(settleProgram, state, "甲");
+    expect(state.money).toBe(0);
+    expect(state.stamina.current).toBe(100 - 5);
+  });
+
+  it("没标 [settle] 的正文效果不结算，编译期给 warning", () => {
+    const state = createSliceState();
+    enterPassage(settleProgram, state, "乙");
+    expect(state.stamina.current).toBe(100);
+    expect(warns(settleProgram.diagnostics)).toContain("settle-tag");
+  });
+});
+
 describe("选中选项", () => {
   it("无代价：不动时间与资源；选项没写 next 时落到单元级 next", () => {
     const { state } = at("a");
@@ -164,8 +265,10 @@ describe("选中选项", () => {
     expect(view.passageId).toBe("c");
     expect(state.money).toBe(1500);
     expect(state.stamina.current).toBe(state.stamina.max - 10);
-    expect(state.recent.map((r) => r.text)).toEqual(["获得了 1 两 500 文", "体力 -10"]);
-    expect(state.recent.map((r) => r.kind)).toEqual(["gain", "loss"]);
+    // 钱与体力并作一行：失在前、得在后
+    expect(state.recent.map((r) => r.text)).toEqual(["体力 -10，获得了 1 两 500 文"]);
+    expect(state.recent.map((r) => r.kind)).toEqual(["note"]);
+    expect(state.recent[0]!.parts!.map((p) => p.kind)).toEqual(["loss", "note", "gain"]);
   });
 
   it("没有 next 也没有单元级 next：停在原地，转自由行动", () => {

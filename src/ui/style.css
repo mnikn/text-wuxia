@@ -138,6 +138,9 @@ h4 { font-size: 14px; color: var(--accent); margin: 12px 0 6px; }
   .dev-launcher .dev-label { grid-column: auto; }
   .dev-launcher .btn { width: 100%; }
 }
+/* 开发态：随机单元的强制定向组，虚线边框与正常选项区分 */
+.dev-forces { margin-top: 16px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.dev-forces .choice { color: #7a6a53; }
 h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--accent); padding-left: 10px; }
 
 .origin-card { display: block; width: 100%; text-align: left; background: var(--panel); border: 1.5px solid var(--line);
