@@ -227,6 +227,15 @@ h2.sect { font-size: 18px; margin: 26px 0 10px; border-left: 4px solid var(--acc
 #game .rail .rail-ring:hover .bubble,
 #game .rail .rail-ring:focus-visible .bubble { display: block; }
 #game .rail .rail-date { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 4px; }
+/* 一天的段图标（晨／昼／暮／夜）：侧栏与窄栏的时间行共用；颜色按段走 */
+.daypart-svg { width: 16px; height: 16px; vertical-align: -2px; margin-right: 5px; color: #a89a86; stroke-width: 1.8; }
+.daypart-svg.dawn { color: #c98a3c; }
+.daypart-svg.day { color: #c9a02c; }
+.daypart-svg.dusk { color: #b4592f; }
+.daypart-svg.night { color: #3f5b8c; }
+/* 窄栏：图标独占一行，时辰在它下面 */
+#game .rail .rail-date #rail-time { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+#game .rail .rail-date .daypart-svg { width: 20px; height: 20px; margin-right: 0; }
 #game .rail .rail-bag { width: 40px; padding: 6px 0; border: 1px solid var(--line); border-radius: 6px;
   background: #faf7f0; font-size: 12.5px; color: var(--accent); letter-spacing: 1px; }
 #game .rail .rail-bag:hover { border-color: var(--accent); }

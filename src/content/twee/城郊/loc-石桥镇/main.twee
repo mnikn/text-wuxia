@@ -35,11 +35,15 @@
 :: 地点.石桥镇.码头 [scene]
 {"地点":"石桥镇·码头"}
 
-桥西的码头泊着几条粮船，跳板搭在石阶上。脚夫们扛着麻袋上上下下，号子声短促。
+<<if hour >= 5 && hour < 17>>
+  桥西的码头泊着几条粮船，跳板搭在石阶上。脚夫们扛着麻袋上上下下，号子声短促。
 
-一个牙子模样的人蹲在货堆旁，见你走近，抬了抬下巴：「扛得动？两个时辰三十文，现结。」
+  一个牙子模样的人蹲在货堆旁，见你走近，抬了抬下巴：「扛得动？两个时辰三十文，现结。」
+<<else>>
+  码头上静下来了，粮船靠着岸边，跳板上没有人。货堆盖着草席，只余一盏守夜的灯笼在风里晃。
+<</if>>
 
-<<choice id="haul" label="应下这趟活" good-result-hint="挣三十文" cost="time 16, stamina 20">>
+<<choice id="haul" label="应下这趟活" good-result-hint="挣三十文" cost="time 16, stamina 20" show="hour >= 5 && hour < 17">>
   <<eff money +30>>
   <<next 地点.石桥镇.码头.扛货结果>>
 <</choice>>
@@ -47,7 +51,7 @@
   <<eff stamina +20>>
   <<next 动作.歇脚>>
 <</choice>>
-<<choice id="askBoat" label="问这粮是往哪里去的" show="!seen('问过粮船')" mark="问过粮船">>
+<<choice id="askBoat" label="问这粮是往哪里去的" show="!seen('问过粮船') && hour >= 5 && hour < 17" mark="问过粮船">>
   <<next 地点.石桥镇.码头.问粮结果>>
 <</choice>>
 <<choice id="back" label="回镇街" exit="true">>

@@ -168,11 +168,32 @@ function staminaPct(): number {
   return Math.max(0, Math.min(100, Math.round((state.stamina.current / state.stamina.max) * 100)));
 }
 
+/** 一天的段（晨／昼／暮／夜）的小图标：按小时切段，颜色按段走（见 style.css 的 .daypart-svg）。 */
+function dayPartSvg(minute: number): string {
+  const hour = Math.floor(minute / 60);
+  const attrs = (part: string): string =>
+    `class="daypart-svg ${part}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"`;
+  if (hour >= 5 && hour < 9) {
+    // 晨：地平线低，半日在上，光芒朝上
+    return `<svg ${attrs("dawn")}><path d="M3 19h18"/><path d="M8 19a4 4 0 0 1 8 0"/><path d="M12 12.5V8.5"/><path d="M6.6 15.4l-1.9-1.9"/><path d="M17.4 15.4l1.9-1.9"/></svg>`;
+  }
+  if (hour >= 9 && hour < 17) {
+    // 昼：日头当空
+    return `<svg ${attrs("day")}><circle cx="12" cy="12" r="4"/><path d="M12 3v2.4"/><path d="M12 18.6V21"/><path d="M3 12h2.4"/><path d="M18.6 12H21"/><path d="M5.6 5.6l1.7 1.7"/><path d="M16.7 16.7l1.7 1.7"/><path d="M18.4 5.6l-1.7 1.7"/><path d="M7.3 16.7l-1.7 1.7"/></svg>`;
+  }
+  if (hour >= 17 && hour < 19) {
+    // 暮：地平线高，半日沉在下，光芒朝下
+    return `<svg ${attrs("dusk")}><path d="M3 15h18"/><path d="M8 15a4 4 0 0 0 8 0"/><path d="M12 21v-2.4"/><path d="M6.6 19.4l1.6-1.6"/><path d="M17.4 19.4l-1.6-1.6"/></svg>`;
+  }
+  // 夜：月牙与两点疏星
+  return `<svg ${attrs("night")}><path d="M20 14.6A8.2 8.2 0 1 1 12.4 4a6.4 6.4 0 0 0 7.6 10.6z"/><path d="M5.6 6.4l.9.9"/><path d="M4.4 10.8h1.2"/></svg>`;
+}
+
 function renderSide(): void {
   const pct = staminaPct();
   const date = dateOf(state.clock.day);
 
-  $("side-when").textContent = `${date.year} 年 ${monthDayName(date.month, date.day)} ${shichenName(state.clock.minute)}`;
+  $("side-when").innerHTML = `${dayPartSvg(state.clock.minute)}<span>${date.year} 年 ${monthDayName(date.month, date.day)} ${shichenName(state.clock.minute)}</span>`;
   $("side-where").textContent = state.location;
   $("side-stamina").innerHTML =
     `<span class="k">体力</span>` +
@@ -182,7 +203,7 @@ function renderSide(): void {
 
   // 窄栏：圆环只画比例，具体数值藏在按住的浮字里；日期只留月日与时刻
   $("rail-month").textContent = monthDayName(date.month, date.day);
-  $("rail-time").textContent = shichenName(state.clock.minute);
+  $("rail-time").innerHTML = `${dayPartSvg(state.clock.minute)}<span>${shichenName(state.clock.minute)}</span>`;
   $("rail-bubble").textContent = `${state.stamina.current} / ${state.stamina.max}`;
   const ring = $("ring-fg") as unknown as SVGCircleElement;
   ring.style.strokeDashoffset = String(RING_LEN * (1 - pct / 100));
