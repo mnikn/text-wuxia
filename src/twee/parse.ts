@@ -448,9 +448,14 @@ function parseBody(
       const label = attrs["label"];
       if (!id) error(ctx, cur.line, "choice-id", "<<choice>> 缺少 id");
       if (!label) error(ctx, cur.line, "choice-label", "<<choice>> 缺少 label");
-      const unknown = Object.keys(attrs).filter((k) => !["id", "label", "if", "cost", "check", "stay", "show", "mark", "exit"].includes(k));
+      const unknown = Object.keys(attrs).filter((k) => !["id", "label", "if", "cost", "check", "stay", "show", "mark", "exit", "good-result-hint", "bad-result-hint"].includes(k));
       if (unknown.length > 0) {
         error(ctx, cur.line, "choice-attr", `<<choice>> 不认识的参数：${unknown.join(" / ")}`);
+      }
+      for (const key of ["good-result-hint", "bad-result-hint"] as const) {
+        if (attrs[key] === "") {
+          error(ctx, cur.line, "choice-hint", `<<choice>> 的 ${key} 不能是空串`);
+        }
       }
       const choice: IrChoice = {
         id: id ?? `未命名-${cur.line}`,
@@ -482,6 +487,8 @@ function parseBody(
         if (attrs["exit"] !== "true") error(ctx, cur.line, "choice-attr", `<<choice>> 的 exit 只认 exit="true"，读到「${attrs["exit"]}」`);
         else choice.exit = true;
       }
+      if (attrs["good-result-hint"] !== undefined) choice.goodResultHint = attrs["good-result-hint"];
+      if (attrs["bad-result-hint"] !== undefined) choice.badResultHint = attrs["bad-result-hint"];
       if (openChoice) error(ctx, cur.line, "choice-nested", "选项不能嵌套在选项里");
       out.choices.push(choice);
       parseBody(ctx, lines.slice(i + 1), { blocks: choice.blocks, choices: [], outcomes: [] }, choice, "choice");

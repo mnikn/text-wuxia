@@ -85,6 +85,9 @@ export interface IrChoice {
   mark?: string;
   /** 出行：这个选项是「前往另一个地点」，UI 与本地行动分组显示 */
   exit?: boolean;
+  /** 后果提示短语（UI 加括号上色）：good 绿 / bad 红；两者可同时有 */
+  goodResultHint?: string;
+  badResultHint?: string;
   pos: SourcePos;
 }
 

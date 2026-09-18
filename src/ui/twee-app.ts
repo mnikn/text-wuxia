@@ -268,14 +268,7 @@ function choiceButton(opt: TweeOption): HTMLButtonElement {
   btn.className = opt.exit ? "choice exit" : "choice";
   btn.disabled = Boolean(opt.blocked);
   const label = document.createElement("span");
-  const risk = opt.label.match(/^(.*?)(（[^（）]*风险[^（）]*）)$/);
-  label.append(risk?.[1] ?? opt.label);
-  if (risk?.[2]) {
-    const warning = document.createElement("em");
-    warning.className = "risk";
-    warning.textContent = risk[2];
-    label.appendChild(warning);
-  }
+  label.append(opt.label);
   if (opt.ke) label.append(`（${formatKe(opt.ke)}）`);
   btn.appendChild(label);
   if (opt.blocked || opt.summary) {
@@ -284,6 +277,16 @@ function choiceButton(opt: TweeOption): HTMLButtonElement {
     small.textContent = opt.blocked ?? `（${opt.summary}）`;
     btn.appendChild(small);
   }
+  // 后果提示排最后：耗时、代价之后（AGENTS.md 呈现约定）
+  const appendHint = (text: string | undefined, cls: string) => {
+    if (!text) return;
+    const mark = document.createElement("em");
+    mark.className = cls;
+    mark.textContent = `（${text}）`;
+    btn.appendChild(mark);
+  };
+  appendHint(opt.goodResultHint, "good");
+  appendHint(opt.badResultHint, "risk");
   btn.onclick = () => {
     view = chooseOption(program, state, view!.passageId, opt.id);
     render();

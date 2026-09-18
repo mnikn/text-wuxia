@@ -112,9 +112,16 @@ export function tweePlugin(options: TweePluginOptions = {}): Plugin {
         if (mod) server.moduleGraph.invalidateModule(mod);
         server.ws.send({ type: "full-reload" });
       };
+      // 编译器与插件本体是 dev server 进程在启动时加载的，热替换不了；
+      // 它们一变就让整机重启，免得服务器拿旧编译器编新内容
+      const engineRoots = [resolve(process.cwd(), "src/twee"), resolve(process.cwd(), "src/vite")];
+      const restartOnEngineChange = (file: string): void => {
+        if (engineRoots.some((root) => file.startsWith(root))) server.restart();
+      };
       server.watcher.on("change", invalidate);
       server.watcher.on("add", invalidate);
       server.watcher.on("unlink", invalidate);
+      server.watcher.on("change", restartOnEngineChange);
     },
     buildStart() {
       const { summary } = compile();

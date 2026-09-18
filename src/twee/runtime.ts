@@ -496,6 +496,9 @@ export interface TweeOption {
   ke?: number;
   /** 出行选项（前往别的地点），UI 与本地行动分组 */
   exit?: boolean;
+  /** 后果提示短语（UI 加括号上色：good 绿 / bad 红；两者可同时有） */
+  goodResultHint?: string;
+  badResultHint?: string;
 }
 
 export interface TweeView {
@@ -612,6 +615,8 @@ export function renderPassage(passage: IrPassage, state: SliceState, program: Tw
         blocked: blockedReason(c, state),
         ke: time?.kind === "literal" ? Number(time.value) : undefined,
         exit: c.exit,
+        goodResultHint: c.goodResultHint,
+        badResultHint: c.badResultHint,
       };
     });
   return {

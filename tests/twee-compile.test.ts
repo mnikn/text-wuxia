@@ -105,6 +105,39 @@ describe("选项与后续", () => {
   });
 });
 
+describe("后果提示（good-result-hint / bad-result-hint）", () => {
+  it("两个提示同时写，都进 IR", () => {
+    const p = parseTwee(join(
+      ":: a",
+      '<<choice id="x" label="睡下" good-result-hint="回一部分体力" bad-result-hint="有失窃风险" cost="time 4">>',
+      "甲",
+      "<</choice>>",
+      "",
+    ));
+    expect(errs(p.diagnostics)).toEqual([]);
+    const c = p.passages[0]!.choices[0]!;
+    expect(c.goodResultHint).toBe("回一部分体力");
+    expect(c.badResultHint).toBe("有失窃风险");
+  });
+
+  it("只写一个也行", () => {
+    const onlyGood = parseTwee(join(":: a", '<<choice id="x" label="甲" good-result-hint="体力回满">>', "甲", "<</choice>>", ""));
+    expect(errs(onlyGood.diagnostics)).toEqual([]);
+    expect(onlyGood.passages[0]!.choices[0]!.goodResultHint).toBe("体力回满");
+    expect(onlyGood.passages[0]!.choices[0]!.badResultHint).toBeUndefined();
+    const onlyBad = parseTwee(join(":: a", '<<choice id="x" label="甲" bad-result-hint="有危险">>', "甲", "<</choice>>", ""));
+    expect(errs(onlyBad.diagnostics)).toEqual([]);
+    expect(onlyBad.passages[0]!.choices[0]!.badResultHint).toBe("有危险");
+  });
+
+  it("提示写空串报错", () => {
+    const good = parseTwee(join(":: a", '<<choice id="x" label="甲" good-result-hint="" bad-result-hint="有危险">>', "甲", "<</choice>>", ""));
+    expect(errs(good.diagnostics)).toContain("choice-hint");
+    const bad = parseTwee(join(":: a", '<<choice id="x" label="甲" bad-result-hint="">>', "甲", "<</choice>>", ""));
+    expect(errs(bad.diagnostics)).toContain("choice-hint");
+  });
+});
+
 describe("随机调度单元", () => {
   it("解析加权 outcome 并校验目标", () => {
     const p = parseTwee(

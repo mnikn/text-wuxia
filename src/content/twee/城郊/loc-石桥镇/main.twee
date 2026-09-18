@@ -31,7 +31,8 @@
 
 「后院有通铺，三十文一夜。被褥旧些，门倒是闩得牢。」
 
-<<choice id="stay" label="住一夜" cost="money 30">>
+<<choice id="stay" label="住一夜" good-result-hint="体力回满" cost="money 30, time 48">>
+  <<eff stamina +100>>
   <<next 故事.石桥镇.脚店过夜>>
 <</choice>>
 <<choice id="leave" label="离开脚店">>
@@ -40,6 +41,14 @@
 
 :: 故事.石桥镇.脚店过夜 [scene]
 
+后院的通铺是间矮屋，地上顺着墙根打了一排地铺。同屋的脚夫和衣而卧，鼾声此起彼伏。被褥带着潮气，门闩却闩得牢——你拣了个空处躺下，这一觉睡得沉，连梦也没有一个。
+
+醒来时窗纸发白，前店卸下门板，挑担的脚步声来来去去。你坐起来活动了下胳膊腿，昨日赶路的酸乏，已经散了个干净。
+
+<<choice id="rise" label="起身出门">>
+  <<next 故事.石桥镇.清晨>>
+<</choice>>
+
 :: 地点.石桥镇.桥下 [scene]
 {"地点":"石桥镇·桥下"}
 
@@ -47,7 +56,7 @@
 
 一个须发花白的汉子往里挪了挪：「睡便睡，别占路。夜里有人摸东西，丢了可没人替你找。」
 
-<<choice id="sleep" label="找个空处躺下（有失窃风险）" cost="time 48">>
+<<choice id="sleep" label="找个空处躺下" good-result-hint="回一部分体力" bad-result-hint="有失窃风险" cost="time 48">>
   <<next 故事.石桥镇.桥下过夜>>
 <</choice>>
 <<choice id="back" label="回镇街" exit="true">>
