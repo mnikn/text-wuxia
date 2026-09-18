@@ -5,7 +5,7 @@
 
 粮价一天一个价，排队的人已经懒得骂了。
 
-<<choice id="grain" label="买一星期的粮" cost="money 200" show="item('米袋') < 1 && !seen('故事.开场.煮饭熬药')">>
+<<choice id="grain" label="买一星期的粮" cost="money 200, stamina 20" show="item('米袋') < 1 && !seen('故事.开场.煮饭熬药')">>
   <<eff item("米袋") +1>>
   <<next 地点.家村.市集.买粮结果>>
 <</choice>>

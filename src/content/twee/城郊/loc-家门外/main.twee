@@ -29,7 +29,7 @@
   <<eff item("剑") +1>>
   <<next 地点.家村.家中.取剑结果>>
 <</choice>>
-<<choice id="settle" label="起火煮饭和药" show="item('米袋') >= 1 && item('药包') >= 1">>
+<<choice id="settle" label="起火煮饭和药" cost="stamina 10" show="item('米袋') >= 1 && item('药包') >= 1">>
   <<eff item("药包") -1, item('米袋') -1>>
   <<next 故事.开场.煮饭熬药>>
 <</choice>>

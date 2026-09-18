@@ -18,7 +18,7 @@
 <<choice id="toMarket" label="前往市集" exit="true">>
   <<next 地点.家村.市集>>
 <</choice>>
-<<choice id="toTown" label="前往石桥镇" exit="true" cost="time 64" show="seen('故事.开场.煮饭熬药')">>
+<<choice id="toTown" label="前往石桥镇" exit="true" cost="time 64, stamina 40" show="seen('故事.开场.煮饭熬药')">>
   你顺着土路往北，过了两道土岗，再沿洺水走。八个时辰的路，走到后来，脚底磨出了泡。
 
   <<next 故事.石桥镇.初到>>
