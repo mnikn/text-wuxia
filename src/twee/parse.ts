@@ -169,7 +169,7 @@ const EFF_TARGETS = new Set(["money", "stamina", "neili", "hp", "role", "log"]);
 /** 代价条目的可支付子集；`time` 是保留字（走时间推进，不进效果表） */
 const COST_KEYS = new Set(["time", "money", "stamina", "neili"]);
 /** 谓词里允许的具名调用（词表里其余谓词尚未接进编译器，遇到即报错） */
-const PREDICATE_CALLS = new Set(["seen", "item"]);
+const PREDICATE_CALLS = new Set(["seen", "item", "at"]);
 /**
  * 物品条目形态：`item("药包") +1`。
  * 名字的引号可省——代价串本身写在 `cost="…"` 里，内层引号会撞车，所以 `cost="time 5, item(药包) 1"` 是常态写法。
@@ -425,7 +425,8 @@ function parseBody(
         }
       } else {
         const target = rawArgs;
-        if (!PASSAGE_ID_RE.test(target)) {
+        // `@back` 是共享动作的回程占位符（见 runtime 的 BACK_TARGET），不是单元 id
+        if (target !== "@back" && !PASSAGE_ID_RE.test(target)) {
           error(ctx, cur.line, "next-form", `<<next>> 要写一个单元 id，读到「${target}」`);
         } else if (openChoice) {
           if (openChoice.stay) {
@@ -700,11 +701,11 @@ export function parseTwee(source: string, options: ParseOptions = {}): TweeProgr
 export function validateRefs(passages: IrPassage[], index: Record<string, number>): Diagnostic[] {
   const out: Diagnostic[] = [];
   for (const p of passages) {
-    if (p.next && index[p.next] === undefined) {
+    if (p.next && p.next !== "@back" && index[p.next] === undefined) {
       out.push({ level: "error", code: "next-missing", message: `单元 ${p.id} 的 <<next>> 指向不存在的单元：${p.next}`, line: p.pos.line });
     }
     for (const c of p.choices) {
-      if (c.next && index[c.next] === undefined) {
+      if (c.next && c.next !== "@back" && index[c.next] === undefined) {
         out.push({ level: "error", code: "next-missing", message: `单元 ${p.id} 的选项 ${c.id} 指向不存在的单元：${c.next}`, line: c.pos.line });
       }
     }
@@ -833,6 +834,13 @@ function checkExpr(ctx: Ctx, expr: Expr): void {
 /** 校验门：引用可解析、选项 id 不重复、模板不写 next、谓词里的调用与物品名已登记。 */
 function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>, checkRefs = true): void {
   if (checkRefs) ctx.diags.push(...validateRefs(passages, index));
+  // `@back` 的合法宿主：共享动作本身，以及挂在它下面的结果屏（动作.歇脚.歇息结果）
+  const actionIds = new Set(passages.filter((p) => p.tags.includes("action")).map((p) => p.id));
+  const backsAllowed = (p: IrPassage): boolean => {
+    if (p.tags.includes("action")) return true;
+    const cut = p.id.lastIndexOf(".");
+    return cut > 0 && actionIds.has(p.id.slice(0, cut));
+  };
   for (const p of passages) {
     for (const expr of passageExprs(p)) checkExpr(ctx, expr);
     const isTemplate = p.tags.includes("template");
@@ -868,6 +876,14 @@ function validate(ctx: Ctx, passages: IrPassage[], index: Record<string, number>
     }
     if (p.next !== undefined && p.choices.length > 0 && p.choices.every((c) => c.stay)) {
       warn(ctx, p.pos.line, "stay-next", `单元 ${p.id} 的选项全是 stay="true"（就地结算），单元级 <<next>> 永远走不到`);
+    }
+    // 共享动作（[action]）：`@back` 只在动作单元里合法，且动作必须留一条回程
+    const backs = (p.next === "@back" ? 1 : 0) + p.choices.filter((c) => c.next === "@back").length;
+    if (backs > 0 && !backsAllowed(p)) {
+      error(ctx, p.pos.line, "back-outside-action", `单元 ${p.id} 用了 @back，但它不是共享动作单元（[action]）也不是挂在动作下的结果屏`);
+    }
+    if (p.tags.includes("action") && backs === 0) {
+      warn(ctx, p.pos.line, "action-no-exit", `共享动作 ${p.id} 没有一条 @back：进来就回不去了`);
     }
     // 到达结算（[settle]）：正文里的 <<eff>> 只在首次进入时应用，没标签就是死效果
     const bodyEffectCount = countEffectBlocks(p.blocks);

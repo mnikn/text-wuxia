@@ -482,6 +482,8 @@ if (import.meta.env.DEV) {
   // 直达：列出全部单元（按内容文件的书写顺序），配状态预设——验收单屏文案与结算用，尤其随机事件的结果支
   const gotoSelect = $<HTMLSelectElement>("dev-goto");
   for (const passage of PASSAGES) {
+    // 共享动作要靠来路才能回得去，不进直达清单
+    if (passage.tags.includes("action")) continue;
     const option = document.createElement("option");
     option.value = passage.id;
     option.textContent = passage.id;

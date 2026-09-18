@@ -38,6 +38,10 @@ export interface SliceState {
   recent: RecentLine[];
   /** 确定性随机状态：每次随机调度只推进 cursor。 */
   random: RngState;
+  /** 当前所在的单元 id（渲染中的那屏）；共享动作靠它记「从哪来」 */
+  currentPassage: string | null;
+  /** 进入 [action] 单元时记下的来路；`@back` 回到这里，用完清空 */
+  returnTo: string | null;
 }
 
 export const SLICE_TUNE = {
@@ -68,6 +72,8 @@ export function createSliceState(): SliceState {
     atFreeActions: false,
     recent: [],
     random: { seed: SLICE_TUNE.seed, cursor: 0 },
+    currentPassage: null,
+    returnTo: null,
   };
 }
 
@@ -142,6 +148,10 @@ export function evalExpr(expr: Expr, state: SliceState): number | string | boole
       if (expr.name === "item") {
         const arg = evalExpr(expr.arg, state);
         return typeof arg === "string" ? itemCount(state, arg) : 0;
+      }
+      if (expr.name === "at") {
+        const arg = evalExpr(expr.arg, state);
+        return typeof arg === "string" && state.location === arg;
       }
       return null;
     }
@@ -644,6 +654,9 @@ function applyEntryEffects(blocks: IrBlock[], state: SliceState): RecentLine[] {
   return lines;
 }
 
+/** 共享动作的回程占位符：`<<next @back>>` 回进入这个 [action] 单元前的所在单元。 */
+export const BACK_TARGET = "@back";
+
 /** 进入一个单元：记访问、按头部元数据更新地点、清行止记录、判定是否已到自由行动。 */
 export function enterPassage(
   program: TweeProgram,
@@ -653,10 +666,19 @@ export function enterPassage(
   choiceText: string[] = [],
   opts: EnterOptions = {},
 ): TweeView {
+  if (id === BACK_TARGET) {
+    const target = state.returnTo;
+    if (!target) throw new Error("@back 没有来路：共享动作只能从引用了它的单元进入");
+    state.returnTo = null;
+    return enterPassage(program, state, target, recent, choiceText, opts);
+  }
   const passage = passageById(program, id);
   if (!passage) throw new Error(`没有这个单元：${id}`);
   const firstVisit = state.visited[id] !== true;
   state.visited[id] = true;
+  // 共享动作：进门先记下来路（`@back` 要用），再把所在单元挪到这一屏
+  if (passage.tags.includes("action")) state.returnTo = state.currentPassage;
+  state.currentPassage = id;
   if (passage.meta.地点) state.location = passage.meta.地点;
   // [settle]：到达即结算，只算第一次（重进不重复扣）
   const settled = firstVisit && passage.tags.includes("settle") ? mergeRecent(applyEntryEffects(passage.blocks, state)) : [];

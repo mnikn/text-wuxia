@@ -24,6 +24,7 @@ import { parseExpr } from "../src/twee/expr";
 
 const join = (...lines: string[]) => lines.join("\n");
 const warns = (diags: { level: string; code: string }[]) => diags.filter((d) => d.level === "warning").map((d) => d.code);
+const errs = (diags: { level: string; code: string }[]) => diags.filter((d) => d.level === "error").map((d) => d.code);
 
 /**
  * 夹具：
@@ -228,6 +229,101 @@ describe("到达结算（[settle]）", () => {
     enterPassage(settleProgram, state, "乙");
     expect(state.stamina.current).toBe(100);
     expect(warns(settleProgram.diagnostics)).toContain("settle-tag");
+  });
+});
+
+describe("共享动作（[action] 与 @back）", () => {
+  const shared = parseTwee(
+    join(
+      ":: 甲地 [scene]",
+      '{"地点":"甲地"}',
+      "",
+      "甲地。",
+      "",
+      '<<choice id="act" label="做件事">>',
+      "<<next 动作.甲>>",
+      "<</choice>>",
+      "",
+      ":: 乙地 [scene]",
+      '{"地点":"乙地"}',
+      "",
+      "乙地。",
+      "",
+      '<<choice id="act" label="做件事">>',
+      "<<next 动作.甲>>",
+      "<</choice>>",
+      "",
+      ":: 动作.甲 [action]",
+      "",
+      '<<if at("甲地")>>',
+      "  在甲地做的。",
+      "<<else>>",
+      "  在别处做的。",
+      "<</if>>",
+      "",
+      '<<choice id="do" label="做完">>',
+      "<<eff stamina -5>>",
+      "<<next @back>>",
+      "<</choice>>",
+      '<<choice id="leave" label="算了">>',
+      "<<next @back>>",
+      "<</choice>>",
+      "",
+    ),
+  );
+
+  it("哪来的回哪去：甲地进回甲地，乙地进回乙地", () => {
+    const s = createSliceState();
+    enterPassage(shared, s, "甲地");
+    expect(chooseOption(shared, s, "甲地", "act").passageId).toBe("动作.甲");
+    expect(chooseOption(shared, s, "动作.甲", "do").passageId).toBe("甲地");
+    enterPassage(shared, s, "乙地");
+    expect(chooseOption(shared, s, "乙地", "act").passageId).toBe("动作.甲");
+    expect(chooseOption(shared, s, "动作.甲", "leave").passageId).toBe("乙地");
+  });
+
+  it("动作正文按 at() 读所在地点", () => {
+    const s = createSliceState();
+    enterPassage(shared, s, "甲地");
+    expect(chooseOption(shared, s, "甲地", "act").paragraphs).toContain("在甲地做的。");
+    enterPassage(shared, s, "乙地");
+    expect(chooseOption(shared, s, "乙地", "act").paragraphs).toContain("在别处做的。");
+  });
+
+  it("没有来路就 @back：报错说清原因", () => {
+    const s = createSliceState();
+    enterPassage(shared, s, "动作.甲");
+    expect(() => chooseOption(shared, s, "动作.甲", "do")).toThrow(/没有来路/);
+  });
+
+  it("非 [action] 单元写 @back：解析报错", () => {
+    const bad = parseTwee(join(":: 甲 [scene]", "", '<<choice id="x" label="走">>', "<<next @back>>", "<</choice>>", ""));
+    expect(errs(bad.diagnostics)).toContain("back-outside-action");
+  });
+
+  it("[action] 单元没有 @back：warning", () => {
+    const bad = parseTwee(join(":: 动作.甲 [action]", "", '<<choice id="x" label="走">>', "<<next 甲>>", "<</choice>>", "", ":: 甲 [scene]", "甲。", ""));
+    expect(warns(bad.diagnostics)).toContain("action-no-exit");
+  });
+
+  it("挂在动作下的结果屏也能用 @back", () => {
+    const ok = parseTwee(join(
+      ":: 甲 [scene]", "",
+      '<<choice id="go" label="去">>', "<<next 动作.甲>>", "<</choice>>", "",
+      ":: 动作.甲 [action]", "",
+      '<<choice id="do" label="做">>', "<<next 动作.甲.结果>>", "<</choice>>", "",
+      ":: 动作.甲.结果 [scene result]", "",
+      "做完了。", "",
+      "<<next @back>>", "",
+    ));
+    expect(errs(ok.diagnostics)).not.toContain("back-outside-action");
+    const s = createSliceState();
+    enterPassage(ok, s, "甲");
+    chooseOption(ok, s, "甲", "go");
+    expect(chooseOption(ok, s, "动作.甲", "do").passageId).toBe("动作.甲.结果");
+    // 结果屏的 @back 是单元级 <<next>>，由「继续」按钮走 followNext
+    const back = followNext(ok, s, passageById(ok, "动作.甲.结果")!);
+    expect(back!.passageId).toBe("甲");
   });
 });
 
